@@ -1,0 +1,16 @@
+name: Changelog
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  changelog:
+    name: Changelog
+    uses: project-graphite/actions/.github/workflows/reusable-changelog.yml@main
+    secrets: inherit
