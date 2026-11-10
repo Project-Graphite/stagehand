@@ -52,10 +52,26 @@ namespace GraphiteLyrics
         public bool KeepMouseOff = true;
         public int IdleAfterPauseSeconds = 20;
         public string RomanizeMode = "Off";
+        public bool ShowTrayIcon = true;
 
         static readonly string FilePath = Path.Combine(Log.DataDir, "settings.json");
 
         public event Action Changed;
+
+        public Settings Copy()
+        {
+            var copy = new Settings();
+            copy.CopyFrom(this);
+            return copy;
+        }
+
+        public void CopyFrom(Settings source)
+        {
+            foreach (var field in typeof(Settings).GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public))
+                field.SetValue(this, field.GetValue(source));
+        }
+
+        public bool SameAs(Settings other) => new JavaScriptSerializer().Serialize(this) == new JavaScriptSerializer().Serialize(other);
 
         public static Settings Load()
         {
@@ -77,14 +93,7 @@ namespace GraphiteLyrics
             var reload = new System.Windows.Threading.DispatcherTimer(TimeSpan.FromMilliseconds(150), System.Windows.Threading.DispatcherPriority.Normal, (s, e) =>
             {
                 ((System.Windows.Threading.DispatcherTimer)s).Stop();
-                var fresh = Load();
-                IdleBackgroundPath = fresh.IdleBackgroundPath;
-                IdleAnchor = fresh.IdleAnchor;
-                LyricOffsetSeconds = fresh.LyricOffsetSeconds;
-                ShowStats = fresh.ShowStats;
-                KeepMouseOff = fresh.KeepMouseOff;
-                IdleAfterPauseSeconds = fresh.IdleAfterPauseSeconds;
-                RomanizeMode = fresh.RomanizeMode;
+                CopyFrom(Load());
                 Changed?.Invoke();
             }, dispatcher);
             reload.Stop();

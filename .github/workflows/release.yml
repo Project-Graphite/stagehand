@@ -1,0 +1,42 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    name: release
+    runs-on: windows-2025
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check the tag matches the version
+        shell: powershell
+        run: |
+          $version = [regex]::Match((Get-Content src/Version.cs -Raw), 'AssemblyVersion\("([^"]+)"\)').Groups[1].Value
+          if ("v$version" -ne "${{ github.ref_name }}") { throw "Tag ${{ github.ref_name }} does not match version $version in src/Version.cs" }
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Build
+        shell: powershell
+        run: |
+          ./build.ps1
+          Copy-Item bin/GraphiteLyrics.exe "bin/GraphiteLyrics-Setup-$env:VERSION.exe"
+
+      - name: Attest provenance
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-path: bin/GraphiteLyrics-Setup-${{ env.VERSION }}.exe
+
+      - name: Publish release
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" "bin/GraphiteLyrics-Setup-$env:VERSION.exe" --title "Graphite Lyrics $env:VERSION" --generate-notes

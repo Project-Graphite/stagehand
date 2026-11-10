@@ -21,11 +21,56 @@ namespace GraphiteLyrics
         [STAThread]
         static void Main(string[] args)
         {
-            if (args.Contains("--agent") || args.Contains("--preview") || args.Contains("--snapshot")) RunAgent(args);
+            var renderIndex = Array.IndexOf(args, "--render-window");
+            if (renderIndex >= 0) RenderWindow(args[renderIndex + 1] == "setup" ? (Window)new SetupWindow() : new SettingsWindow(Settings.Load()), args[renderIndex + 2]);
+            else if (args.Contains("--install")) Installer.Install(args.Contains("--startup") || StartupShortcut.Exists);
+            else if (args.Contains("--uninstall")) RunUninstall(args.Contains("--quiet"));
+            else if (args.Contains("--agent") || args.Contains("--preview") || args.Contains("--snapshot")) RunAgent(args);
+            else if (Installer.IsSetup(ExePath)) new Application().Run(new SetupWindow());
             else RunApp();
         }
 
-        static string ExePath => Process.GetCurrentProcess().MainModule.FileName;
+        public static string ExePath => Process.GetCurrentProcess().MainModule.FileName;
+
+        public static bool AgentRunning
+        {
+            get
+            {
+                if (!Mutex.TryOpenExisting(AgentMutexName, out var existing)) return false;
+                existing.Dispose();
+                return true;
+            }
+        }
+
+        static void RenderWindow(Window window, string path)
+        {
+            var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            window.WindowStartupLocation = WindowStartupLocation.Manual;
+            window.Left = -6000;
+            window.Top = -6000;
+            window.ShowActivated = false;
+            window.Show();
+            var delay = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            delay.Tick += (s, e) =>
+            {
+                delay.Stop();
+                var content = (FrameworkElement)window.Content;
+                var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap((int)content.ActualWidth, (int)content.ActualHeight, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+                bitmap.Render(content);
+                var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+                using (var file = File.Create(path)) encoder.Save(file);
+                app.Shutdown();
+            };
+            delay.Start();
+            app.Run();
+        }
+
+        static void RunUninstall(bool quiet)
+        {
+            if (!quiet && MessageBox.Show("Uninstall Graphite Lyrics?\n\nYour settings and cached lyrics stay in " + Log.DataDir + ".", "Graphite Lyrics", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
+            Installer.Uninstall();
+        }
 
         public static void StartAgent()
         {
@@ -138,7 +183,7 @@ namespace GraphiteLyrics
                 {
                     Icon = System.Drawing.Icon.ExtractAssociatedIcon(ExePath),
                     Text = "Graphite Lyrics",
-                    Visible = true,
+                    Visible = settings.ShowTrayIcon,
                     ContextMenu = new System.Windows.Forms.ContextMenu(new[]
                     {
                         new System.Windows.Forms.MenuItem("Open Graphite Lyrics", (s, e) => Process.Start(new ProcessStartInfo(ExePath) { UseShellExecute = false })),
@@ -147,6 +192,7 @@ namespace GraphiteLyrics
                     })
                 })
                 {
+                    settings.Changed += () => tray.Visible = settings.ShowTrayIcon;
                     tray.DoubleClick += (s, e) => Process.Start(new ProcessStartInfo(ExePath) { UseShellExecute = false });
                     app.Run();
                 }

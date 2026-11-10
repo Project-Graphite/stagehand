@@ -29,21 +29,25 @@ nothing is playing, the screen falls back to an idle video or image of your choi
 
 ## Install
 
-```powershell
-./install.ps1
-```
+Download `GraphiteLyrics-Setup-<version>.exe` from
+[Releases](https://github.com/Project-Graphite/graphite-lyrics/releases) and run it. It installs to
+`%LOCALAPPDATA%\Programs\Graphite Lyrics` for the current user, without administrator rights, and adds
+**Graphite Lyrics** to the Start menu. Running a newer setup updates the installed copy. Uninstall it
+from **Settings › Apps › Installed apps** like any other app.
 
-This builds the app, copies it to `%LOCALAPPDATA%\Programs\Graphite Lyrics` and adds **Graphite
-Lyrics** to the Start menu. `./install.ps1 -Uninstall` removes it.
+Each release is built from its tag by the Release workflow and carries a build provenance
+attestation, which `gh attestation verify <file> --repo Project-Graphite/graphite-lyrics` checks.
 
 ## Using it
 
 - **Graphite Lyrics** in the Start menu opens the settings and starts the background agent if it is
   not running.
-- The agent lives in the tray. Double-click it to open the settings, or use **Quit** to stop it.
+- The agent can show a tray icon. Double-click it to open the settings, or use **Quit** to stop it.
+  With the icon turned off, use the Start menu entry and **Stop lyrics screen** instead.
 - In the settings you can choose the idle background and its crop, adjust the lyric timing,
-  choose romanization, toggle the stats panel, keep the mouse off the case screen, choose how long
-  to wait after pausing and start the agent with Windows. Changes apply immediately.
+  choose romanization, toggle the stats panel and the tray icon, keep the mouse off the case screen,
+  choose how long to wait after pausing and start the agent with Windows. Nothing changes until you
+  press **Save**.
 
 Settings, the lyrics cache and the log live in `%LOCALAPPDATA%\GraphiteLyrics`.
 
@@ -53,6 +57,10 @@ Settings, the lyrics cache and the log live in `%LOCALAPPDATA%\GraphiteLyrics`.
 ./build.ps1
 ./bin/GraphiteLyrics.exe --agent --preview
 ```
+
+`./install.ps1` builds and installs the working copy the same way the setup does, and
+`./install.ps1 -Uninstall` removes it. To release, bump the version in `src/Version.cs`, then push a
+matching tag such as `v0.2.0`.
 
 `--preview` shows the screen in a window on the main display. For a scripted check that does not
 touch any display, render one frame of a demo song to a PNG:
@@ -73,7 +81,9 @@ starting position in seconds.
 | `src/Romanizer.cs` | Japanese and Korean romanization |
 | `src/LyricsWindow.cs` | The case-screen renderer |
 | `src/SettingsWindow.cs` | The settings app |
-| `src/Program.cs` | App and agent entry points |
+| `src/SetupWindow.cs`, `src/Installer.cs` | The setup: install, update and uninstall |
+| `src/GraphiteXaml.cs` | Shared Project Graphite control styles |
+| `src/Program.cs` | App, agent and setup entry points |
 
 ## License
 
