@@ -22,7 +22,7 @@ $references += "-reference:$winmd"
 $out = Join-Path $PSScriptRoot "bin"
 New-Item -ItemType Directory -Force $out | Out-Null
 & $csc -nologo -noconfig -nostdlib -langversion:latest -optimize+ -platform:x64 -target:winexe -warnaserror `
-    "-win32icon:$(Join-Path $PSScriptRoot 'assets\app.ico')" "-out:$(Join-Path $out 'Stagehand.exe')" `
+    "-win32icon:$(Join-Path $PSScriptRoot 'assets\app.ico')" "-resource:$(Join-Path $PSScriptRoot 'assets\kanji-readings.gz'),kanji-readings.gz" "-out:$(Join-Path $out 'Stagehand.exe')" `
     @references (Get-ChildItem (Join-Path $PSScriptRoot "src") -Filter *.cs | ForEach-Object FullName)
 if ($LASTEXITCODE) { throw "Build failed." }
 Write-Output "Built $(Join-Path $out 'Stagehand.exe')"

@@ -93,8 +93,7 @@ namespace Stagehand
             </StackPanel>
           </Border>
         </DockPanel>
-        <TextBlock Text='Japanese and Korean. Below adds a smaller line under each lyric; Only replaces it.' Style='{StaticResource Hint}' Margin='0,0,0,4'/>
-        <TextBlock x:Name='KanjiHint' Style='{StaticResource Hint}' Foreground='#D7A54A' Margin='0,0,0,14'/>
+        <TextBlock Text='Japanese and Korean. Below adds a smaller line under each lyric; Only replaces it.' Style='{StaticResource Hint}' Margin='0,0,0,14'/>
         <DockPanel>
           <TextBlock Text='Song stats panel' Style='{StaticResource Label}'/>
           <ToggleButton x:Name='StatsToggle' Style='{StaticResource Switch}' HorizontalAlignment='Right'/>
@@ -180,9 +179,6 @@ namespace Stagehand
             };
 
             Choice("Romanize", new[] { "Off", "Below", "Only" }, draft.RomanizeMode, value => draft.RomanizeMode = value);
-            var kanjiHint = Find<TextBlock>("KanjiHint");
-            kanjiHint.Text = Romanizer.HasJapaneseReadings ? "" : "Kanji stay as written until Japanese is added in Windows Settings › Time & language › Language & region.";
-            kanjiHint.Visibility = kanjiHint.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
             Toggle("StatsToggle", draft.ShowStats, value => draft.ShowStats = value);
             Toggle("MouseToggle", draft.KeepMouseOff, value => draft.KeepMouseOff = value);
             Toggle("TrayToggle", draft.ShowTrayIcon, value => draft.ShowTrayIcon = value);

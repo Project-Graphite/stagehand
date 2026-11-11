@@ -21,8 +21,9 @@ switches: one for every RGB light in the case and one for every screen.
   optional glass stats panel beside the lyrics.
 - Shows a now-watching card with the thumbnail, title, channel and progress for movies, shows and
   videos. A music video with lyrics on LRCLIB still gets lyrics.
-- Can add or substitute romanized lyrics for Japanese and Korean. Kanji readings come from the
-  Windows Japanese language support, so add Japanese in Windows Settings for full readings.
+- Can add or substitute romanized lyrics for Japanese and Korean. Kanji readings come from a
+  bundled table built from JMdict, so no extra Windows language is needed. If Japanese is installed
+  in Windows, its phonetic analyzer is used instead.
 - Switches to the idle background as soon as the player closes, and after a set time when paused.
 - Moves any window that lands on the case screen back to the main display.
 
@@ -94,6 +95,13 @@ touch any display, render one frame of a demo song to a PNG:
 The arguments after `--demo` are the title, artist, duration in seconds, a cover image and the
 starting position in seconds. A cover wider than 5:4 renders the now-watching card instead.
 
+`assets/kanji-readings.gz` is generated from JMdict. To refresh it, download `JMdict_e.gz` from the
+[EDRDG](https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project) and run:
+
+```powershell
+./tools/build-kanji-readings.ps1 -JMdict path\to\JMdict_e.gz
+```
+
 ## Layout
 
 | Path | What it is |
@@ -112,3 +120,10 @@ starting position in seconds. A cover wider than 5:4 renders the now-watching ca
 ## License
 
 [MIT](LICENSE). Lyrics come from LRCLIB and belong to their rights holders.
+
+`assets/kanji-readings.gz` is derived from the
+[JMdict](https://www.edrdg.org/wiki/index.php/JMdict-EDICT_Dictionary_Project) dictionary files,
+the property of the [Electronic Dictionary Research and Development Group](https://www.edrdg.org/),
+and is used and shared under the
+[Creative Commons Attribution-ShareAlike 4.0](https://creativecommons.org/licenses/by-sa/4.0/)
+licence, as is the derived file.
