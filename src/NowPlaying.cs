@@ -35,11 +35,13 @@ namespace Stagehand
     {
         GlobalSystemMediaTransportControlsSessionManager manager;
         string sessionApp;
+        GlobalSystemMediaTransportControlsSession current;
         TrackInfo track;
         bool fetchingProperties;
         int propertiesRequest;
         DateTime lastPropertiesFetch = DateTime.MinValue;
         double anchorPosition;
+        DateTime seekSettlesAt = DateTime.MinValue;
         DateTime anchorTime = DateTime.UtcNow;
         bool playing;
         bool demo;
@@ -68,6 +70,7 @@ namespace Stagehand
             if (manager == null) return new PlaybackSnapshot();
             var chosen = manager.GetSessions().FirstOrDefault(s => s.GetPlaybackInfo()?.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing)
                          ?? manager.GetCurrentSession();
+            current = chosen;
             if (chosen == null)
             {
                 sessionApp = null;
@@ -94,10 +97,15 @@ namespace Stagehand
             var timeline = chosen.GetTimelineProperties();
             var reported = timeline.Position.TotalSeconds;
             if (playing) reported += Math.Max(0, (DateTimeOffset.UtcNow - timeline.LastUpdatedTime).TotalSeconds);
-            if (!wasPlaying || !playing || Math.Abs(reported - Predict()) > 0.35)
+            var drift = reported - Predict();
+            if (DateTime.UtcNow >= seekSettlesAt)
             {
-                anchorPosition = reported;
-                anchorTime = DateTime.UtcNow;
+                if (!wasPlaying || !playing || Math.Abs(drift) > 1.5)
+                {
+                    anchorPosition = reported;
+                    anchorTime = DateTime.UtcNow;
+                }
+                else anchorPosition += drift * 0.08;
             }
             if (track != null && timeline.EndTime > TimeSpan.Zero) track.DurationSeconds = timeline.EndTime.TotalSeconds;
 
@@ -107,6 +115,26 @@ namespace Stagehand
         public double Predict()
         {
             return playing ? anchorPosition + (DateTime.UtcNow - anchorTime).TotalSeconds : anchorPosition;
+        }
+
+        public string AppId => sessionApp;
+
+        public bool IsPlaying => playing;
+
+        public void TogglePlayPause() => current?.TryTogglePlayPauseAsync();
+
+        public void Next() => current?.TrySkipNextAsync();
+
+        public void Previous() => current?.TrySkipPreviousAsync();
+
+        public void Seek(double seconds)
+        {
+            if (current == null) return;
+            seconds = Math.Max(0, seconds);
+            _ = current.TryChangePlaybackPositionAsync((long)(seconds * TimeSpan.TicksPerSecond));
+            anchorPosition = seconds;
+            anchorTime = DateTime.UtcNow;
+            seekSettlesAt = DateTime.UtcNow.AddSeconds(1.5);
         }
 
         static string FriendlySource(string appId)

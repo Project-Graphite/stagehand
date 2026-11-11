@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Web.Script.Serialization;
@@ -46,6 +47,25 @@ namespace Stagehand
         }
     }
 
+    static class SyncNudges
+    {
+        public const string FileName = "nudges.json";
+        static readonly string FilePath = Path.Combine(Log.DataDir, FileName);
+
+        public static Dictionary<string, double> Load()
+        {
+            return File.Exists(FilePath)
+                ? new JavaScriptSerializer().Deserialize<Dictionary<string, double>>(File.ReadAllText(FilePath, Encoding.UTF8))
+                : new Dictionary<string, double>();
+        }
+
+        public static void Save(Dictionary<string, double> nudges)
+        {
+            Directory.CreateDirectory(Log.DataDir);
+            File.WriteAllText(FilePath, new JavaScriptSerializer().Serialize(nudges), Encoding.UTF8);
+        }
+    }
+
     sealed class Settings
     {
         public string IdleBackgroundPath = "";
@@ -55,6 +75,17 @@ namespace Stagehand
         public bool KeepMouseOff = true;
         public int IdleAfterPauseSeconds = 20;
         public string RomanizeMode = "Off";
+        public string Highlight = "Lines";
+        public string Display = "";
+        public string LyricFont = "";
+        public string LyricSize = "M";
+        public string LyricAlign = "Left";
+        public string HighlightColor = "White";
+        public string BackgroundStyle = "Cover";
+        public bool ShowCover = true;
+        public string StatsSize = "M";
+        public string LightsExcluded = "";
+        public string ScreensExcluded = "";
         public bool ShowTrayIcon = true;
 
         static readonly string FilePath = Path.Combine(Log.DataDir, "settings.json");

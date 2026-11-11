@@ -19,6 +19,7 @@ namespace Stagehand
         public Dictionary<string, int> FanScreenBrightnessBefore = new Dictionary<string, int>();
         public bool CaseScreenWasDisplay;
         public int CaseScreenBrightnessBefore;
+        public string ScreensSwitched = "";
 
         public const string FileName = "switches.json";
         static readonly string FilePath = Path.Combine(Log.DataDir, FileName);
@@ -36,7 +37,11 @@ namespace Stagehand
             File.WriteAllText(FilePath, new JavaScriptSerializer().Serialize(this), Encoding.UTF8);
         }
 
-        public async Task SetLightsOffAsync(bool off)
+        public const string CoolerScreen = "cooler", FanScreens = "fans", CaseScreen = "case";
+
+        public static HashSet<string> Ids(string list) => new HashSet<string>((list ?? "").Split(',').Where(id => id.Length > 0));
+
+        public async Task SetLightsOffAsync(bool off, string excluded)
         {
             if (off == LightsOff) return;
             if (off)
@@ -44,6 +49,10 @@ namespace Stagehand
                 LightingBefore = LConnect.SavedLighting();
                 Save();
                 var black = LConnect.Json.Deserialize<Dictionary<string, object>>(LightingBefore);
+                var skip = Ids(excluded);
+                var keep = ((IEnumerable)black["MacList"]).Cast<object>().Select(id => !skip.Contains(Convert.ToString(id))).ToList();
+                foreach (var list in new[] { "MacList", "DirectionList", "ColorTempList", "SelectedList" })
+                    black[list] = ((IEnumerable)black[list]).Cast<object>().Where((item, index) => index >= keep.Count || keep[index]).ToList();
                 var effect = (Dictionary<string, object>)black["LightEffectSet"];
                 effect["UIEffect"] = 3;
                 effect["UserColors"] = new[] { new Dictionary<string, object> { { "A", 255 }, { "R", 0 }, { "G", 0 }, { "B", 0 }, { "ScA", 1 }, { "ScR", 0 }, { "ScG", 0 }, { "ScB", 0 } } };
@@ -54,33 +63,43 @@ namespace Stagehand
             Save();
         }
 
-        public async Task SetScreensOffAsync(bool off)
+        public async Task SetScreensOffAsync(bool off, string excluded)
         {
             if (off == ScreensOff) return;
+            var kinds = off ? new HashSet<string> { CoolerScreen, FanScreens, CaseScreen } : Ids(ScreensSwitched);
             if (off)
             {
+                kinds.ExceptWith(Ids(excluded));
+                ScreensSwitched = string.Join(",", kinds);
                 CoolerScreenWasOn = false;
-                foreach (var cooler in await LConnect.Controllers(LConnect.CoolerType))
-                    CoolerScreenWasOn |= (bool)await LConnect.Device(cooler, "GetIsScreenOn", "");
+                if (kinds.Contains(CoolerScreen))
+                    foreach (var cooler in await LConnect.Controllers(LConnect.CoolerType))
+                        CoolerScreenWasOn |= (bool)await LConnect.Device(cooler, "GetIsScreenOn", "");
                 FanScreenBrightnessBefore = new Dictionary<string, int>();
-                foreach (var fans in (await LConnect.Controllers(LConnect.FanScreenType)).Take(1))
-                    foreach (var group in await LConnect.FanScreenGroups(fans))
-                        FanScreenBrightnessBefore[(string)group["HubID"]] = Convert.ToInt32(group["Brightness"]);
-                var display = await LConnect.CaseScreen(LConnect.CaseScreenDisplayMode);
-                CaseScreenWasDisplay = display != null;
-                if (display != null) await LConnect.Device(display, "SetSecondaryScreen", "false");
-                var screen = display != null ? await LConnect.WaitForCaseScreen(LConnect.CaseScreenStandalone) : await LConnect.CaseScreen(LConnect.CaseScreenStandalone);
-                if (screen != null) CaseScreenBrightnessBefore = Convert.ToInt32(await LConnect.UntilBound(screen, "GetScreenBrightness", ""));
+                if (kinds.Contains(FanScreens))
+                    foreach (var fans in (await LConnect.Controllers(LConnect.FanScreenType)).Take(1))
+                        foreach (var group in await LConnect.FanScreenGroups(fans))
+                            FanScreenBrightnessBefore[(string)group["HubID"]] = Convert.ToInt32(group["Brightness"]);
+                if (kinds.Contains(CaseScreen))
+                {
+                    var display = await LConnect.CaseScreen(LConnect.CaseScreenDisplayMode);
+                    CaseScreenWasDisplay = display != null;
+                    if (display != null) await LConnect.Device(display, "SetSecondaryScreen", "false");
+                    var screen = display != null ? await LConnect.WaitForCaseScreen(LConnect.CaseScreenStandalone) : await LConnect.CaseScreen(LConnect.CaseScreenStandalone);
+                    if (screen != null) CaseScreenBrightnessBefore = Convert.ToInt32(await LConnect.UntilBound(screen, "GetScreenBrightness", ""));
+                }
                 await ApplyScreensOffAsync();
             }
             else
             {
-                foreach (var cooler in await LConnect.Controllers(LConnect.CoolerType))
-                    await LConnect.Device(cooler, "SetIsScreenOn", CoolerScreenWasOn ? "true" : "false");
-                foreach (var fans in (await LConnect.Controllers(LConnect.FanScreenType)).Take(1))
-                    foreach (var group in FanScreenBrightnessBefore)
-                        await LConnect.SetFanScreenBrightness(fans, group.Key, group.Value);
-                var screen = await LConnect.CaseScreen(LConnect.CaseScreenStandalone);
+                if (kinds.Contains(CoolerScreen))
+                    foreach (var cooler in await LConnect.Controllers(LConnect.CoolerType))
+                        await LConnect.Device(cooler, "SetIsScreenOn", CoolerScreenWasOn ? "true" : "false");
+                if (kinds.Contains(FanScreens))
+                    foreach (var fans in (await LConnect.Controllers(LConnect.FanScreenType)).Take(1))
+                        foreach (var group in FanScreenBrightnessBefore)
+                            await LConnect.SetFanScreenBrightness(fans, group.Key, group.Value);
+                var screen = kinds.Contains(CaseScreen) ? await LConnect.CaseScreen(LConnect.CaseScreenStandalone) : null;
                 if (screen != null)
                 {
                     await LConnect.UntilBound(screen, "SetScreenBrightness", CaseScreenBrightnessBefore.ToString());
@@ -91,16 +110,21 @@ namespace Stagehand
             Save();
         }
 
-        public static async Task ApplyScreensOffAsync()
+        public async Task ApplyScreensOffAsync()
         {
-            foreach (var cooler in await LConnect.Controllers(LConnect.CoolerType))
-                await LConnect.Device(cooler, "SetIsScreenOn", "false");
-            foreach (var fans in (await LConnect.Controllers(LConnect.FanScreenType)).Take(1))
-                foreach (var group in await LConnect.FanScreenGroups(fans))
-                    await LConnect.SetFanScreenBrightness(fans, (string)group["HubID"], 0);
-            var screen = await LConnect.CaseScreen(LConnect.CaseScreenStandalone);
+            var kinds = Ids(ScreensSwitched);
+            if (kinds.Contains(CoolerScreen))
+                foreach (var cooler in await LConnect.Controllers(LConnect.CoolerType))
+                    await LConnect.Device(cooler, "SetIsScreenOn", "false");
+            if (kinds.Contains(FanScreens))
+                foreach (var fans in (await LConnect.Controllers(LConnect.FanScreenType)).Take(1))
+                    foreach (var group in await LConnect.FanScreenGroups(fans))
+                        await LConnect.SetFanScreenBrightness(fans, (string)group["HubID"], 0);
+            var screen = kinds.Contains(CaseScreen) ? await LConnect.CaseScreen(LConnect.CaseScreenStandalone) : null;
             if (screen != null) await LConnect.Device(screen, "SetScreenBrightness", "0");
         }
+
+        public bool BlacksOutCaseScreen => ScreensOff && Ids(ScreensSwitched).Contains(CaseScreen);
     }
 
     static class LConnect
@@ -177,6 +201,36 @@ namespace Stagehand
                     await Task.Delay(500);
                 }
             }
+        }
+
+        public static async Task<bool> Available()
+        {
+            try
+            {
+                return (await Post("action=Ping", "")).Contains("OK");
+            }
+            catch (Exception error) when (error is HttpRequestException || error is TaskCanceledException)
+            {
+                return false;
+            }
+        }
+
+        public static async Task<List<KeyValuePair<string, string>>> LightingDevices()
+        {
+            var names = ((IEnumerable)Json.DeserializeObject(await Post("action=GetOpenRgbDevice", ""))).Cast<Dictionary<string, object>>()
+                .ToDictionary(device => Convert.ToString(device["devIndex"]), device => (string)device["Name"] + " " + (Convert.ToInt32(device["devIndex"]) + 1));
+            return ((IEnumerable)Json.Deserialize<Dictionary<string, object>>(SavedLighting())["MacList"]).Cast<object>().Select(Convert.ToString)
+                .Select(id => new KeyValuePair<string, string>(id, names.TryGetValue(id, out var name) ? name : id == "HS2" ? "HydroShift II cooler" : "Wireless fans " + id.Substring(0, Math.Min(8, id.Length))))
+                .ToList();
+        }
+
+        public static async Task<List<KeyValuePair<string, string>>> ScreenDevices()
+        {
+            var screens = new List<KeyValuePair<string, string>>();
+            if ((await Controllers(CoolerType)).Count > 0) screens.Add(new KeyValuePair<string, string>(CaseSwitches.CoolerScreen, "Cooler screen"));
+            if ((await Controllers(FanScreenType)).Count > 0) screens.Add(new KeyValuePair<string, string>(CaseSwitches.FanScreens, "LCD fan screens"));
+            if (await CaseScreen(CaseScreenDisplayMode) != null || await CaseScreen(CaseScreenStandalone) != null) screens.Add(new KeyValuePair<string, string>(CaseSwitches.CaseScreen, "9.2-inch case screen"));
+            return screens;
         }
 
         public static async Task<List<Dictionary<string, object>>> FanScreenGroups(string path)

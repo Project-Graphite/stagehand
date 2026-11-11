@@ -43,11 +43,13 @@ namespace Stagehand
         const uint SWP_NOZORDER = 0x4;
 
         public static volatile bool CursorGuardEnabled = true;
+        public static volatile string PreferredDisplay = "";
 
         public static Forms.Screen FindLyricsScreen()
         {
-            return Forms.Screen.AllScreens.FirstOrDefault(s => s.Bounds.Width == 1920 && s.Bounds.Height == 464)
-                ?? Forms.Screen.AllScreens.FirstOrDefault(s => !s.Primary && (double)s.Bounds.Width / s.Bounds.Height > 3.5);
+            var screens = Forms.Screen.AllScreens.Where(s => !s.Primary).ToList();
+            return screens.FirstOrDefault(s => s.DeviceName == PreferredDisplay)
+                ?? screens.FirstOrDefault(s => (double)s.Bounds.Width / s.Bounds.Height > 3.5);
         }
 
         public static void ApplyWindowStyles(IntPtr hwnd, bool preview)

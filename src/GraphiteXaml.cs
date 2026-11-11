@@ -84,6 +84,50 @@ namespace Stagehand
         </Track>
       </ControlTemplate></Setter.Value></Setter>
     </Style>
+    <Style x:Key='Tab' TargetType='RadioButton'>
+      <Setter Property='Foreground' Value='#8B8B95'/><Setter Property='Cursor' Value='Hand'/><Setter Property='Margin' Value='0,0,26,0'/>
+      <Setter Property='Template'><Setter.Value><ControlTemplate TargetType='RadioButton'>
+        <StackPanel Background='Transparent'>
+          <ContentPresenter TextElement.FontSize='14' TextElement.FontWeight='SemiBold' Margin='0,0,0,10'/>
+          <Border x:Name='line' Height='2' CornerRadius='1' Background='Transparent' Margin='0,0,0,-1'/>
+        </StackPanel>
+        <ControlTemplate.Triggers>
+          <Trigger Property='IsMouseOver' Value='True'><Setter Property='Foreground' Value='#E8E8EA'/></Trigger>
+          <Trigger Property='IsChecked' Value='True'><Setter Property='Foreground' Value='#E8E8EA'/><Setter TargetName='line' Property='Background' Value='#E8E8EA'/></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key='Pick' TargetType='ComboBox'>
+      <Setter Property='Foreground' Value='#E8E8EA'/><Setter Property='FontSize' Value='13'/><Setter Property='Cursor' Value='Hand'/>
+      <Setter Property='Template'><Setter.Value><ControlTemplate TargetType='ComboBox'>
+        <Grid>
+          <ToggleButton Focusable='False' IsChecked='{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}'>
+            <ToggleButton.Template><ControlTemplate TargetType='ToggleButton'>
+              <Border x:Name='b' Background='Transparent' BorderBrush='#26262C' BorderThickness='1' CornerRadius='8'/>
+              <ControlTemplate.Triggers><Trigger Property='IsMouseOver' Value='True'><Setter TargetName='b' Property='BorderBrush' Value='#8B8B95'/></Trigger></ControlTemplate.Triggers>
+            </ControlTemplate></ToggleButton.Template>
+          </ToggleButton>
+          <DockPanel IsHitTestVisible='False' Margin='12,7,12,7'>
+            <Path DockPanel.Dock='Right' Data='M0,0 L4,4 L8,0' Stroke='#8B8B95' StrokeThickness='1.5' VerticalAlignment='Center' Margin='10,0,0,0'/>
+            <ContentPresenter Content='{TemplateBinding SelectionBoxItem}' VerticalAlignment='Center'/>
+          </DockPanel>
+          <Popup IsOpen='{TemplateBinding IsDropDownOpen}' Placement='Bottom' AllowsTransparency='True' Focusable='False' PopupAnimation='Fade'>
+            <Border Background='#131316' BorderBrush='#26262C' BorderThickness='1' CornerRadius='8' Margin='0,4,0,0' MinWidth='{TemplateBinding ActualWidth}' MaxHeight='320'>
+              <ScrollViewer Margin='4' VerticalScrollBarVisibility='Auto'><ItemsPresenter/></ScrollViewer>
+            </Border>
+          </Popup>
+        </Grid>
+      </ControlTemplate></Setter.Value></Setter>
+      <Setter Property='ItemContainerStyle'><Setter.Value>
+        <Style TargetType='ComboBoxItem'>
+          <Setter Property='Foreground' Value='#E8E8EA'/>
+          <Setter Property='Template'><Setter.Value><ControlTemplate TargetType='ComboBoxItem'>
+            <Border x:Name='b' Background='Transparent' CornerRadius='6' Padding='10,6'><ContentPresenter/></Border>
+            <ControlTemplate.Triggers><Trigger Property='IsHighlighted' Value='True'><Setter TargetName='b' Property='Background' Value='#26262C'/></Trigger></ControlTemplate.Triggers>
+          </ControlTemplate></Setter.Value></Setter>
+        </Style>
+      </Setter.Value></Setter>
+    </Style>
     <Style x:Key='Range' TargetType='Slider'>
       <Setter Property='Template'><Setter.Value><ControlTemplate TargetType='Slider'>
         <Grid Height='22'>

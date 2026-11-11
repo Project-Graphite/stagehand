@@ -22,7 +22,13 @@ namespace Stagehand
         static void Main(string[] args)
         {
             var renderIndex = Array.IndexOf(args, "--render-window");
-            if (renderIndex >= 0) RenderWindow(args[renderIndex + 1] == "setup" ? (Window)new SetupWindow() : new SettingsWindow(Settings.Load()), args[renderIndex + 2]);
+            if (renderIndex >= 0)
+            {
+                var settingsWindow = args[renderIndex + 1] == "setup" ? null : new SettingsWindow(Settings.Load());
+                var pageIndex = Array.IndexOf(args, "--page");
+                if (settingsWindow != null && pageIndex >= 0) settingsWindow.Open(args[pageIndex + 1]);
+                RenderWindow(settingsWindow ?? (Window)new SetupWindow(), args[renderIndex + 2]);
+            }
             else if (args.Contains("--install")) Installer.Install(args.Contains("--startup") || StartupShortcut.Exists);
             else if (args.Contains("--uninstall")) RunUninstall(args.Contains("--quiet"));
             else if (args.Contains("--agent") || args.Contains("--preview") || args.Contains("--snapshot")) RunAgent(args);
@@ -114,7 +120,7 @@ namespace Stagehand
                 app.DispatcherUnhandledException += (s, e) => { Log.Write("agent unhandled: " + e.Exception); e.Handled = true; };
                 var settings = Settings.Load();
                 settings.WatchFile(app.Dispatcher);
-                var window = new LyricsWindow(settings, preview);
+                var window = new LyricsWindow(settings, preview) { ForceControls = args.Contains("--controls") };
 
                 var demoIndex = Array.IndexOf(args, "--demo");
                 if (demoIndex >= 0)
@@ -136,6 +142,13 @@ namespace Stagehand
                 {
                     window.Left = -6000;
                     window.Top = -6000;
+                    var sizeIndex = Array.IndexOf(args, "--size");
+                    if (sizeIndex >= 0)
+                    {
+                        var size = args[sizeIndex + 1].Split('x');
+                        window.Width = double.Parse(size[0], CultureInfo.InvariantCulture);
+                        window.Height = double.Parse(size[1], CultureInfo.InvariantCulture);
+                    }
                     window.Show();
                     var delay = new DispatcherTimer { Interval = TimeSpan.FromSeconds(double.Parse(args[snapshotIndex + 2], CultureInfo.InvariantCulture)) };
                     delay.Tick += (s, e) => { delay.Stop(); window.SaveSnapshot(args[snapshotIndex + 1]); app.Shutdown(); };
@@ -164,6 +177,7 @@ namespace Stagehand
                         ScreenPlacement.PlaceOn(new WindowInteropHelper(window).Handle, screen.Bounds);
                     };
                     SystemEvents.DisplaySettingsChanged += (s, e) => window.Dispatcher.BeginInvoke(place);
+                    settings.Changed += place;
                     window.SourceInitialized += (s, e) => place();
                     var screenNow = ScreenPlacement.FindLyricsScreen();
                     if (screenNow != null)
@@ -179,11 +193,11 @@ namespace Stagehand
                 if (!preview)
                 {
                     var switches = CaseSwitches.Load();
-                    window.SetBlackout(switches.ScreensOff);
+                    window.SetBlackout(switches.BlacksOutCaseScreen);
                     Settings.WatchDataFile(CaseSwitches.FileName, app.Dispatcher, () =>
                     {
                         switches = CaseSwitches.Load();
-                        window.SetBlackout(switches.ScreensOff);
+                        window.SetBlackout(switches.BlacksOutCaseScreen);
                     });
                     var keepScreensOff = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
                     keepScreensOff.Tick += async (s, e) =>
@@ -191,7 +205,7 @@ namespace Stagehand
                         if (!switches.ScreensOff) return;
                         try
                         {
-                            await CaseSwitches.ApplyScreensOffAsync();
+                            await switches.ApplyScreensOffAsync();
                         }
                         catch (Exception error) when (error is System.Net.Http.HttpRequestException || error is System.Threading.Tasks.TaskCanceledException || error is InvalidOperationException)
                         {
