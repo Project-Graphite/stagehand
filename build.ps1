@@ -1,4 +1,20 @@
+param([string]$Version)
 $ErrorActionPreference = "Stop"
+
+if (-not $Version) {
+    $ErrorActionPreference = "Continue"
+    $tag = git -C $PSScriptRoot describe --tags --abbrev=0 2>$null
+    $ErrorActionPreference = "Stop"
+    $Version = if ($tag -match '^v(\d+\.\d+\.\d+)$') { $Matches[1] } else { "0.0.0" }
+}
+$obj = Join-Path $PSScriptRoot "obj"
+New-Item -ItemType Directory -Force $obj | Out-Null
+$stamp = Join-Path $obj "Version.g.cs"
+Set-Content $stamp -Encoding utf8 -Value @(
+    "[assembly: System.Reflection.AssemblyVersion(`"$Version`")]",
+    "[assembly: System.Reflection.AssemblyFileVersion(`"$Version`")]",
+    "[assembly: System.Reflection.AssemblyInformationalVersion(`"$Version`")]"
+)
 
 $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
 $csc = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\Roslyn\csc.exe" | Select-Object -First 1
@@ -23,6 +39,6 @@ $out = Join-Path $PSScriptRoot "bin"
 New-Item -ItemType Directory -Force $out | Out-Null
 & $csc -nologo -noconfig -nostdlib -langversion:latest -optimize+ -platform:x64 -target:winexe -warnaserror `
     "-win32icon:$(Join-Path $PSScriptRoot 'assets\app.ico')" "-resource:$(Join-Path $PSScriptRoot 'assets\kanji-readings.gz'),kanji-readings.gz" "-out:$(Join-Path $out 'Stagehand.exe')" `
-    @references (Get-ChildItem (Join-Path $PSScriptRoot "src") -Filter *.cs | ForEach-Object FullName)
+    @references (Get-ChildItem (Join-Path $PSScriptRoot "src") -Filter *.cs | ForEach-Object FullName) $stamp
 if ($LASTEXITCODE) { throw "Build failed." }
-Write-Output "Built $(Join-Path $out 'Stagehand.exe')"
+Write-Output "Built $(Join-Path $out 'Stagehand.exe') $Version"

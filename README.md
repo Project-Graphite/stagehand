@@ -41,7 +41,10 @@ Needs Visual Studio Build Tools with the MSBuild component and a Windows 10 or 1
 ./install.ps1    # builds and installs this copy
 ```
 
-To release, bump the version in `src/Version.cs` and push a matching tag such as `v0.3.0`.
+Versions are cut automatically from conventional commits by the Project Graphite changelog workflow.
+Each new `v*` tag runs the Release workflow, which builds the setup, stamps the version from the tag
+and attaches it to the release. To rebuild the setup for an existing tag, run the Release workflow
+manually with that tag.
 
 ## License
 

@@ -3,6 +3,11 @@ name: Release
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to build the setup for, such as v0.3.0
+        required: true
 
 permissions:
   contents: write
@@ -13,21 +18,22 @@ jobs:
   release:
     name: release
     runs-on: windows-2025
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Check the tag matches the version
+      - name: Read the version from the tag
         shell: powershell
         run: |
-          $version = [regex]::Match((Get-Content src/Version.cs -Raw), 'AssemblyVersion\("([^"]+)"\)').Groups[1].Value
-          if ("v$version" -ne "${{ github.ref_name }}") { throw "Tag ${{ github.ref_name }} does not match version $version in src/Version.cs" }
-          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          if ($env:TAG -notmatch '^v(\d+\.\d+\.\d+)$') { throw "Tag $env:TAG is not a vX.Y.Z version" }
+          "VERSION=$($Matches[1])" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Build
         shell: powershell
         run: |
-          ./build.ps1
+          ./build.ps1 -Version $env:VERSION
           Copy-Item bin/Stagehand.exe "bin/Stagehand-Setup-$env:VERSION.exe"
 
       - name: Attest provenance
@@ -40,6 +46,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view "${{ github.ref_name }}" *> $null
-          if ($LASTEXITCODE -eq 0) { gh release upload "${{ github.ref_name }}" "bin/Stagehand-Setup-$env:VERSION.exe" --clobber }
-          else { gh release create "${{ github.ref_name }}" "bin/Stagehand-Setup-$env:VERSION.exe" --title "Stagehand $env:VERSION" --generate-notes }
+          gh release view $env:TAG *> $null
+          if ($LASTEXITCODE -eq 0) { gh release upload $env:TAG "bin/Stagehand-Setup-$env:VERSION.exe" --clobber }
+          else { gh release create $env:TAG "bin/Stagehand-Setup-$env:VERSION.exe" --title "Stagehand $env:VERSION" --generate-notes }
