@@ -28,15 +28,15 @@ jobs:
         shell: powershell
         run: |
           ./build.ps1
-          Copy-Item bin/GraphiteLyrics.exe "bin/GraphiteLyrics-Setup-$env:VERSION.exe"
+          Copy-Item bin/Stagehand.exe "bin/Stagehand-Setup-$env:VERSION.exe"
 
       - name: Attest provenance
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
-          subject-path: bin/GraphiteLyrics-Setup-${{ env.VERSION }}.exe
+          subject-path: bin/Stagehand-Setup-${{ env.VERSION }}.exe
 
       - name: Publish release
         shell: powershell
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" "bin/GraphiteLyrics-Setup-$env:VERSION.exe" --title "Graphite Lyrics $env:VERSION" --generate-notes
+        run: gh release create "${{ github.ref_name }}" "bin/Stagehand-Setup-$env:VERSION.exe" --title "Stagehand $env:VERSION" --generate-notes

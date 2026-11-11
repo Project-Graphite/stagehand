@@ -12,7 +12,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 
-namespace GraphiteLyrics
+namespace Stagehand
 {
     sealed class WordView
     {
@@ -45,7 +45,7 @@ namespace GraphiteLyrics
         public Bubble(double dotSize)
         {
             Scale = new ScaleTransform(1, 1);
-            var row = new StackPanel { Orientation = Orientation.Horizontal };
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Effect = new DropShadowEffect { Color = Graphite.Ink, BlurRadius = dotSize * 0.9, ShadowDepth = 0, Opacity = 0.55, RenderingBias = RenderingBias.Performance } };
             for (int i = 0; i < 3; i++)
             {
                 var dot = new Ellipse { Width = dotSize, Height = dotSize, Fill = Graphite.Brush(Graphite.Ink), Margin = new Thickness(i == 0 ? 0 : dotSize * 0.55, 0, 0, 0), RenderTransformOrigin = new Point(0.5, 0.5), RenderTransform = new ScaleTransform(1, 1) };
@@ -57,8 +57,8 @@ namespace GraphiteLyrics
                 Child = row,
                 CornerRadius = new CornerRadius(dotSize * 1.6),
                 Padding = new Thickness(dotSize * 1.25, dotSize * 0.8, dotSize * 1.25, dotSize * 0.8),
-                Background = Graphite.Brush(Graphite.Surface, 0x99),
-                BorderBrush = Graphite.Brush(Graphite.Ink, 0x26),
+                Background = Graphite.Glass(0x1F, 0x08),
+                BorderBrush = Graphite.Brush(Graphite.Ink, 0x30),
                 BorderThickness = new Thickness(1),
                 HorizontalAlignment = HorizontalAlignment.Left,
                 RenderTransformOrigin = new Point(0.15, 0.5),
@@ -93,9 +93,12 @@ namespace GraphiteLyrics
     sealed class LyricsWindow : Window
     {
         public const double ScreenWidth = 1920, ScreenHeight = 464;
-        const double LyricsLeft = 420;
-        const double StatsLeft = 1548, StatsWidth = 332;
+        const double ArtLeft = 48, ArtTop = 24, ArtSize = 352;
+        const double WordGap = 14;
+        const double LyricsLeft = ArtLeft + ArtSize + 52;
+        const double StatsLeft = 1496, StatsWidth = 384, StatsInner = StatsWidth - 56;
         static readonly Color Dim = Color.FromArgb(0x8C, Graphite.Ink.R, Graphite.Ink.G, Graphite.Ink.B);
+        static readonly Color Soft = Color.FromArgb(0xB4, Graphite.Ink.R, Graphite.Ink.G, Graphite.Ink.B);
 
         readonly Settings settings;
         readonly NowPlayingWatcher watcher = new NowPlayingWatcher();
@@ -105,7 +108,7 @@ namespace GraphiteLyrics
         readonly Grid content = new Grid { Opacity = 0 };
         readonly ScaleTransform contentScale = new ScaleTransform(0.97, 0.97, ScreenWidth / 2, ScreenHeight / 2);
         readonly BlurEffect contentBlur = new BlurEffect { Radius = 16, RenderingBias = RenderingBias.Performance };
-        readonly Image artImage = new Image { Width = 300, Height = 300, Stretch = Stretch.UniformToFill };
+        readonly Image artImage = new Image { Width = ArtSize, Height = ArtSize, Stretch = Stretch.UniformToFill };
         readonly TextBlock titleText = Text(26, Graphite.Ink, FontWeights.SemiBold);
         readonly TextBlock artistText = Text(20, Graphite.Muted, FontWeights.Normal);
         readonly Canvas lyricsViewport = new Canvas { Height = ScreenHeight, ClipToBounds = true };
@@ -116,15 +119,26 @@ namespace GraphiteLyrics
         readonly TextBlock emptyDetail = Text(22, Graphite.Muted, FontWeights.Normal);
         readonly Bubble emptyBubble = new Bubble(16);
         readonly Border statsPanel = new Border();
-        readonly TextBlock sourceText = Text(14, Graphite.Ink, FontWeights.SemiBold);
-        readonly TextBlock elapsedText = Text(34, Graphite.Ink, FontWeights.Normal);
-        readonly TextBlock remainingText = Text(18, Graphite.Muted, FontWeights.Normal);
-        readonly Border progressFill = new Border { Height = 6, CornerRadius = new CornerRadius(3), HorizontalAlignment = HorizontalAlignment.Left, Background = Graphite.Brush(Graphite.Ink) };
-        readonly TextBlock albumValue = Text(16, Graphite.Ink, FontWeights.Normal);
-        readonly TextBlock trackValue = Text(16, Graphite.Ink, FontWeights.Normal);
-        readonly TextBlock lyricsValue = Text(16, Graphite.Ink, FontWeights.Normal);
-        readonly Ellipse lyricsDot = new Ellipse { Width = 8, Height = 8, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
+        readonly TextBlock sourceText = Text(16, Graphite.Ink, FontWeights.SemiBold);
+        readonly TextBlock elapsedText = Text(46, Graphite.Ink, FontWeights.Normal);
+        readonly TextBlock remainingText = Text(22, Graphite.Muted, FontWeights.Normal);
+        readonly Border progressFill = new Border { Height = 7, CornerRadius = new CornerRadius(3.5), HorizontalAlignment = HorizontalAlignment.Left, Background = Graphite.Brush(Graphite.Ink) };
+        readonly TextBlock albumValue = Text(19, Graphite.Ink, FontWeights.Normal);
+        readonly TextBlock trackValue = Text(19, Graphite.Ink, FontWeights.Normal);
+        readonly TextBlock lyricsValue = Text(19, Graphite.Ink, FontWeights.Normal);
+        readonly Ellipse lyricsDot = new Ellipse { Width = 10, Height = 10, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
         readonly List<CoverLayer> coverFading = new List<CoverLayer>();
+        readonly Canvas musicLayer = new Canvas();
+        readonly Canvas videoLayer = new Canvas { Opacity = 0 };
+        readonly Image videoThumb = new Image { Width = 604, Height = 340, Stretch = Stretch.UniformToFill };
+        readonly StackPanel videoDetails = new StackPanel { Width = 1120 };
+        readonly TextBlock videoSource = Text(15, Graphite.Muted, FontWeights.SemiBold);
+        readonly TextBlock videoTitle = Text(52, Graphite.Ink, FontWeights.SemiBold);
+        readonly TextBlock videoChannel = Text(26, Graphite.Muted, FontWeights.Normal);
+        readonly TextBlock videoElapsed = Text(30, Graphite.Ink, FontWeights.Normal);
+        readonly TextBlock videoRemaining = Text(20, Graphite.Muted, FontWeights.Normal);
+        readonly Border videoProgress = new Border { Height = 8, CornerRadius = new CornerRadius(4), HorizontalAlignment = HorizontalAlignment.Left, Background = Graphite.Brush(Graphite.Ink) };
+        double videoMix;
 
         List<LineView> lines = new List<LineView>();
         LyricsView view = LyricsView.Loading;
@@ -139,20 +153,20 @@ namespace GraphiteLyrics
         double show, showFrom, showTo, showStart, showDuration = 1;
         double lyricsFade = 1;
         double lastFrame;
-        bool layoutDirty, snapLines;
+        bool layoutDirty, snapLines, blackout;
         string loadedBackground, loadedAnchor;
         int lastElapsedSecond = -1;
 
         public LyricsWindow(Settings settings, bool preview)
         {
             this.settings = settings;
-            Title = "Graphite Lyrics";
+            Title = "Stagehand";
             WindowStyle = WindowStyle.None;
             ResizeMode = ResizeMode.NoResize;
             ShowInTaskbar = preview;
             Topmost = !preview;
             ShowActivated = false;
-            Background = Graphite.Brush(Graphite.Paper);
+            Background = Brushes.Black;
             Width = ScreenWidth;
             Height = ScreenHeight;
 
@@ -180,6 +194,8 @@ namespace GraphiteLyrics
         }
 
         public void StartDemo(TrackInfo demoTrack, double positionSeconds) => watcher.StartDemo(demoTrack, positionSeconds);
+
+        public void SetBlackout(bool value) => blackout = value;
 
         public void FadeOutAndExit(Application app)
         {
@@ -220,16 +236,15 @@ namespace GraphiteLyrics
                 }, new Point(0, 0), new Point(1, 0))
             });
 
-            var canvas = new Canvas();
-            content.Children.Add(canvas);
+            content.Children.Add(musicLayer);
 
-            artImage.Clip = new RectangleGeometry(new Rect(0, 0, 300, 300), 16, 16);
+            artImage.Clip = new RectangleGeometry(new Rect(0, 0, ArtSize, ArtSize), 18, 18);
             RenderOptions.SetBitmapScalingMode(artImage, BitmapScalingMode.HighQuality);
-            Place(canvas, artImage, 64, 40);
-            Place(canvas, new Border { Width = 300, Height = 300, CornerRadius = new CornerRadius(16), BorderThickness = new Thickness(1), BorderBrush = Graphite.Brush(Graphite.Ink, 0x22) }, 64, 40);
-            titleText.Width = artistText.Width = 300;
-            Place(canvas, titleText, 64, 352);
-            Place(canvas, artistText, 64, 390);
+            Place(musicLayer, artImage, ArtLeft, ArtTop);
+            Place(musicLayer, new Border { Width = ArtSize, Height = ArtSize, CornerRadius = new CornerRadius(18), BorderThickness = new Thickness(1), BorderBrush = Graphite.Brush(Graphite.Ink, 0x22) }, ArtLeft, ArtTop);
+            titleText.Width = artistText.Width = ArtSize;
+            Place(musicLayer, titleText, ArtLeft, ArtTop + ArtSize + 10);
+            Place(musicLayer, artistText, ArtLeft, ArtTop + ArtSize + 46);
 
             lyricsViewport.OpacityMask = new LinearGradientBrush(new GradientStopCollection
             {
@@ -246,10 +261,49 @@ namespace GraphiteLyrics
             emptyState.Children.Add(emptyDetail);
             emptyDetail.Margin = new Thickness(0, 8, 0, 0);
             lyricsViewport.Children.Add(emptyState);
-            Place(canvas, lyricsViewport, LyricsLeft, 0);
+            Place(musicLayer, lyricsViewport, LyricsLeft, 0);
 
             BuildStats();
-            Place(canvas, statsPanel, StatsLeft, 64);
+            Place(musicLayer, statsPanel, StatsLeft, 64);
+
+            content.Children.Add(videoLayer);
+            BuildVideo();
+        }
+
+        void BuildVideo()
+        {
+            videoThumb.Clip = new RectangleGeometry(new Rect(0, 0, 604, 340), 16, 16);
+            RenderOptions.SetBitmapScalingMode(videoThumb, BitmapScalingMode.HighQuality);
+            Place(videoLayer, new Border { Width = 604, Height = 340, CornerRadius = new CornerRadius(16), Background = Graphite.Brush(Graphite.Surface, 0xB8) }, 64, 62);
+            Place(videoLayer, videoThumb, 64, 62);
+            Place(videoLayer, new Border { Width = 604, Height = 340, CornerRadius = new CornerRadius(16), BorderThickness = new Thickness(1), BorderBrush = Graphite.Brush(Graphite.Ink, 0x22) }, 64, 62);
+
+            videoTitle.TextWrapping = TextWrapping.Wrap;
+            videoTitle.MaxHeight = 142;
+            videoTitle.Margin = new Thickness(0, 12, 0, 0);
+            videoChannel.Margin = new Thickness(0, 10, 0, 0);
+            videoDetails.Children.Add(videoSource);
+            videoDetails.Children.Add(videoTitle);
+            videoDetails.Children.Add(videoChannel);
+            AddProgress(videoDetails, videoElapsed, videoRemaining, videoProgress, new Thickness(0, 34, 0, 0), new Thickness(0, 12, 0, 0));
+            Place(videoLayer, videoDetails, 720, 0);
+        }
+
+        static void AddProgress(StackPanel stack, TextBlock elapsed, TextBlock remaining, Border fill, Thickness timesMargin, Thickness barMargin)
+        {
+            var times = new DockPanel { LastChildFill = false, Margin = timesMargin };
+            elapsed.FontFamily = remaining.FontFamily = Graphite.Mono;
+            remaining.VerticalAlignment = VerticalAlignment.Bottom;
+            remaining.Margin = new Thickness(0, 0, 0, 5);
+            DockPanel.SetDock(elapsed, Dock.Left);
+            DockPanel.SetDock(remaining, Dock.Right);
+            times.Children.Add(elapsed);
+            times.Children.Add(remaining);
+            stack.Children.Add(times);
+            var bar = new Grid { Height = fill.Height, Margin = barMargin };
+            bar.Children.Add(new Border { CornerRadius = fill.CornerRadius, Background = Graphite.Brush(Graphite.Ink, 0x26) });
+            bar.Children.Add(fill);
+            stack.Children.Add(bar);
         }
 
         static void Place(Canvas canvas, UIElement element, double x, double y)
@@ -261,10 +315,9 @@ namespace GraphiteLyrics
 
         void BuildStats()
         {
-            var inner = StatsWidth - 44;
-            var stack = new StackPanel();
-            var header = new DockPanel { LastChildFill = false, Margin = new Thickness(0, 0, 0, 18) };
-            var label = Text(13, Graphite.Muted, FontWeights.SemiBold);
+            var stack = new StackPanel { Effect = new DropShadowEffect { Color = Colors.Black, BlurRadius = 14, ShadowDepth = 0, Opacity = 0.8, RenderingBias = RenderingBias.Performance } };
+            var header = new DockPanel { LastChildFill = false, Margin = new Thickness(0, 0, 0, 20) };
+            var label = Text(15, Soft, FontWeights.SemiBold);
             label.Text = "NOW PLAYING";
             DockPanel.SetDock(label, Dock.Left);
             DockPanel.SetDock(sourceText, Dock.Right);
@@ -272,48 +325,36 @@ namespace GraphiteLyrics
             header.Children.Add(sourceText);
             stack.Children.Add(header);
 
-            var times = new DockPanel { LastChildFill = false };
-            elapsedText.FontFamily = remainingText.FontFamily = Graphite.Mono;
-            remainingText.VerticalAlignment = VerticalAlignment.Bottom;
-            remainingText.Margin = new Thickness(0, 0, 0, 5);
-            DockPanel.SetDock(elapsedText, Dock.Left);
-            DockPanel.SetDock(remainingText, Dock.Right);
-            times.Children.Add(elapsedText);
-            times.Children.Add(remainingText);
-            stack.Children.Add(times);
-            var progressTrack = new Grid { Height = 6, Margin = new Thickness(0, 10, 0, 18) };
-            progressTrack.Children.Add(new Border { CornerRadius = new CornerRadius(3), Background = Graphite.Brush(Graphite.Ink, 0x26) });
-            progressTrack.Children.Add(progressFill);
-            stack.Children.Add(progressTrack);
+            AddProgress(stack, elapsedText, remainingText, progressFill, new Thickness(0), new Thickness(0, 12, 0, 20));
 
-            stack.Children.Add(StatRow("ALBUM", albumValue, null, inner));
-            stack.Children.Add(StatRow("TRACK", trackValue, null, inner));
-            stack.Children.Add(StatRow("LYRICS", lyricsValue, lyricsDot, inner));
+            stack.Children.Add(StatRow("ALBUM", albumValue, null));
+            stack.Children.Add(StatRow("TRACK", trackValue, null));
+            stack.Children.Add(StatRow("LYRICS", lyricsValue, lyricsDot));
 
             statsPanel.Child = stack;
             statsPanel.Width = StatsWidth;
-            statsPanel.Padding = new Thickness(22, 20, 22, 10);
-            statsPanel.CornerRadius = new CornerRadius(12);
-            statsPanel.Background = Graphite.Brush(Graphite.Surface, 0xB8);
-            statsPanel.BorderBrush = Graphite.Brush(Graphite.Line);
+            statsPanel.Padding = new Thickness(28, 24, 28, 12);
+            statsPanel.CornerRadius = new CornerRadius(18);
+            statsPanel.Background = Graphite.Glass(0x1C, 0x06);
+            statsPanel.BorderBrush = Graphite.Brush(Graphite.Ink, 0x2A);
             statsPanel.BorderThickness = new Thickness(1);
         }
 
-        static FrameworkElement StatRow(string name, TextBlock value, Ellipse dot, double width)
+        static FrameworkElement StatRow(string name, TextBlock value, Ellipse dot)
         {
             var row = new DockPanel { LastChildFill = false };
-            var label = Text(13, Graphite.Muted, FontWeights.SemiBold);
+            var label = Text(15, Soft, FontWeights.SemiBold);
             label.Text = name;
             label.VerticalAlignment = VerticalAlignment.Center;
             DockPanel.SetDock(label, Dock.Left);
             row.Children.Add(label);
             var right = new StackPanel { Orientation = Orientation.Horizontal };
             if (dot != null) right.Children.Add(dot);
-            value.MaxWidth = width - 90;
+            value.MaxWidth = StatsInner - 100;
             right.Children.Add(value);
             DockPanel.SetDock(right, Dock.Right);
             row.Children.Add(right);
-            return new Border { Child = row, BorderThickness = new Thickness(0, 1, 0, 0), BorderBrush = Graphite.Brush(Graphite.Line), Padding = new Thickness(0, 11, 0, 11) };
+            return new Border { Child = row, BorderThickness = new Thickness(0, 1, 0, 0), BorderBrush = Graphite.Brush(Graphite.Ink, 0x1F), Padding = new Thickness(0, 13, 0, 13) };
         }
 
         void ApplySettings()
@@ -358,11 +399,16 @@ namespace GraphiteLyrics
             sourceText.Text = next.Source;
             albumValue.Text = string.IsNullOrWhiteSpace(next.Album) ? "—" : next.Album;
             trackValue.Text = next.TrackNumber > 0 ? (next.TrackCount > 0 ? next.TrackNumber + " of " + next.TrackCount : next.TrackNumber.ToString()) : "—";
+            videoSource.Text = "NOW WATCHING  ·  " + next.Source.ToUpperInvariant();
+            videoTitle.Text = next.Title;
+            videoChannel.Text = next.Artist;
+            videoChannel.Visibility = string.IsNullOrWhiteSpace(next.Artist) ? Visibility.Collapsed : Visibility.Visible;
             if (next.Artwork != null)
             {
-                artImage.Source = Decode(next.Artwork, 600);
+                artImage.Source = videoThumb.Source = Decode(next.Artwork, 1208);
                 SwapCover(Decode(next.Artwork, 12));
             }
+            else if (!sameSong) videoThumb.Source = null;
             if (sameSong) return;
 
             var request = ++lyricsRequest;
@@ -436,6 +482,18 @@ namespace GraphiteLyrics
             cover = layer;
         }
 
+        static bool IsRightToLeft(char c) => (c >= 0x0590 && c <= 0x08FF) || (c >= 0xFB1D && c <= 0xFDFF) || (c >= 0xFE70 && c <= 0xFEFF);
+
+        static FlowDirection? Direction(string text)
+        {
+            foreach (var c in text)
+            {
+                if (IsRightToLeft(c)) return FlowDirection.RightToLeft;
+                if (char.IsLetter(c)) return FlowDirection.LeftToRight;
+            }
+            return null;
+        }
+
         static List<LyricWord> Retime(List<LyricWord> words, List<LyricWord> original)
         {
             if (words.Count == 0 || original.Count == 0) return words;
@@ -447,6 +505,8 @@ namespace GraphiteLyrics
         {
             sourceLines = source;
             japaneseSong = source.Any(l => l.Words.Any(w => w.Text.Any(Romanizer.IsKana)));
+            var rightToLeftSong = source.Count(l => Direction(string.Concat(l.Words.Select(w => w.Text))) == FlowDirection.RightToLeft) * 2 > source.Count(l => !l.IsGap);
+            var alignment = rightToLeftSong ? HorizontalAlignment.Right : HorizontalAlignment.Left;
             lyricsStack.Children.Clear();
             lines = new List<LineView>();
             foreach (var line in source)
@@ -455,7 +515,8 @@ namespace GraphiteLyrics
                 if (line.IsGap)
                 {
                     lineView.Bubble = new Bubble(15);
-                    lineView.Bubble.Pill.Margin = new Thickness(2, 6, 0, 30);
+                    lineView.Bubble.Pill.Margin = rightToLeftSong ? new Thickness(0, 6, 22, 30) : new Thickness(2, 6, 0, 30);
+                    lineView.Bubble.Pill.HorizontalAlignment = alignment;
                     lineView.Element = lineView.Bubble.Pill;
                 }
                 else
@@ -463,15 +524,42 @@ namespace GraphiteLyrics
                     var original = string.Concat(line.Words.Select(w => w.Text)).Trim();
                     var romanized = settings.RomanizeMode == "Off" ? null : Romanizer.Romanize(original, japaneseSong);
                     var words = romanized != null && settings.RomanizeMode == "Only" ? Retime(LyricsProvider.BuildLine(romanized, line.Start, line.End).Words, line.Words) : line.Words;
-                    var panel = new WrapPanel { Width = LyricsWidth - 20 };
+                    var panel = new WrapPanel
+                    {
+                        MaxWidth = LyricsWidth - 20,
+                        HorizontalAlignment = alignment,
+                        Margin = new Thickness(0, 0, rightToLeftSong ? 20 : 0, 0),
+                        FlowDirection = Direction(string.Concat(words.Select(w => w.Text))) ?? FlowDirection.LeftToRight
+                    };
+                    var runDirection = panel.FlowDirection;
+                    WrapPanel run = null;
+                    TextBlock runFirst = null;
+                    var previousSpace = false;
                     foreach (var word in words)
                     {
+                        var wordDirection = Direction(word.Text) ?? runDirection;
+                        if (wordDirection != runDirection)
+                        {
+                            if (runFirst != null) runFirst.Margin = new Thickness(previousSpace ? WordGap : 0, 0, 0, 0);
+                            runFirst = null;
+                            runDirection = wordDirection;
+                            run = wordDirection == panel.FlowDirection ? null : new WrapPanel { FlowDirection = wordDirection };
+                            if (run != null) panel.Children.Add(run);
+                        }
+                        var space = char.IsWhiteSpace(word.Text.LastOrDefault());
+                        var forward = wordDirection == FlowDirection.LeftToRight;
                         var lit = new GradientStop(Graphite.Ink, 0);
                         var dim = new GradientStop(Dim, 0);
-                        var brush = new LinearGradientBrush(new GradientStopCollection { new GradientStop(Graphite.Ink, 0), lit, dim, new GradientStop(Dim, 1) }, new Point(0, 0), new Point(1, 0));
+                        var brush = new LinearGradientBrush(new GradientStopCollection { new GradientStop(Graphite.Ink, 0), lit, dim, new GradientStop(Dim, 1) }, new Point(forward ? 0 : 1, 0), new Point(forward ? 1 : 0, 0));
                         var lift = new TranslateTransform();
-                        var block = new TextBlock { Text = word.Text, FontFamily = Graphite.Sans, FontSize = 50, FontWeight = FontWeights.SemiBold, Foreground = brush, RenderTransform = lift };
-                        panel.Children.Add(block);
+                        var block = new TextBlock
+                        {
+                            Text = word.Text.TrimEnd(), FontFamily = Graphite.Sans, FontSize = 50, FontWeight = FontWeights.SemiBold, Foreground = brush, RenderTransform = lift,
+                            Margin = run == null ? new Thickness(0, 0, space ? WordGap : 0, 0) : new Thickness(runFirst != null && previousSpace ? WordGap : 0, 0, 0, 0)
+                        };
+                        (run ?? panel).Children.Add(block);
+                        if (run != null && runFirst == null) runFirst = block;
+                        previousSpace = space;
                         lineView.Words.Add(new WordView { Word = word, Block = block, LitEdge = lit, DimEdge = dim, Lift = lift });
                     }
                     var container = new StackPanel { Margin = new Thickness(0, 0, 0, 24) };
@@ -495,6 +583,8 @@ namespace GraphiteLyrics
             Canvas.SetTop(emptyState, (ScreenHeight - emptyState.ActualHeight) / 2);
             statsPanel.UpdateLayout();
             Canvas.SetTop(statsPanel, (ScreenHeight - statsPanel.ActualHeight) / 2);
+            videoDetails.UpdateLayout();
+            Canvas.SetTop(videoDetails, (ScreenHeight - videoDetails.ActualHeight) / 2);
             foreach (var line in lines)
             {
                 line.Top = line.Element.TranslatePoint(new Point(0, 0), lyricsStack).Y;
@@ -529,9 +619,17 @@ namespace GraphiteLyrics
             var transitioning = show > 0.001 && show < 0.999;
             contentBlur.Radius = 16 * (1 - show);
             content.Effect = transitioning ? contentBlur : null;
-            idle.SetPlaying(show < 0.999);
+            idle.SetPlaying(show < 0.999 && !blackout);
+            var root = (UIElement)Content;
+            root.Opacity = Approach(root.Opacity, blackout ? 0 : 1, dt, 4);
 
             AnimateCover(now, dt);
+            var videoTarget = track != null && track.IsVideo && (view == LyricsView.Loading || view == LyricsView.NotFound) ? 1.0 : 0.0;
+            if (track != null) videoMix = show <= 0.001 ? videoTarget : Approach(videoMix, videoTarget, dt, 5);
+            musicLayer.Opacity = 1 - videoMix;
+            videoLayer.Opacity = videoMix;
+            musicLayer.Visibility = videoMix > 0.999 ? Visibility.Hidden : Visibility.Visible;
+            videoLayer.Visibility = videoMix < 0.001 ? Visibility.Hidden : Visibility.Visible;
             if (show <= 0.001) return;
 
             lyricsFade = Approach(lyricsFade, 1, dt, 5);
@@ -576,20 +674,23 @@ namespace GraphiteLyrics
 
         void UpdateStats(double position)
         {
-            if (!settings.ShowStats || track == null) return;
+            if (track == null) return;
             var duration = Math.Max(track.DurationSeconds, 0);
             var elapsed = (int)Math.Max(0, Math.Min(position, duration > 0 ? duration : position));
             if (elapsed != lastElapsedSecond)
             {
                 lastElapsedSecond = elapsed;
-                elapsedText.Text = Clock(elapsed);
-                remainingText.Text = duration > 0 ? "-" + Clock((int)Math.Max(0, duration - elapsed)) : "";
+                elapsedText.Text = videoElapsed.Text = Clock(elapsed);
+                remainingText.Text = videoRemaining.Text = duration > 0 ? "-" + Clock((int)Math.Max(0, duration - elapsed)) : "";
             }
             var fraction = duration > 0 ? Clamp(position / duration) : 0;
-            progressFill.Width = (StatsWidth - 44) * fraction;
+            progressFill.Width = StatsInner * fraction;
+            videoProgress.Width = videoDetails.Width * fraction;
         }
 
-        static string Clock(int seconds) => (seconds / 60) + ":" + (seconds % 60).ToString("00");
+        static string Clock(int seconds) => seconds >= 3600
+            ? (seconds / 3600) + ":" + (seconds / 60 % 60).ToString("00") + ":" + (seconds % 60).ToString("00")
+            : (seconds / 60) + ":" + (seconds % 60).ToString("00");
 
         void AnimateWords(LineView lineView, double t, bool isCurrent, bool isPast)
         {

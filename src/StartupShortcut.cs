@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Reflection;
 
-namespace GraphiteLyrics
+namespace Stagehand
 {
     static class Shortcut
     {
@@ -21,13 +21,13 @@ namespace GraphiteLyrics
 
     static class StartupShortcut
     {
-        static readonly string ShortcutPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup), "Graphite Lyrics.lnk");
+        static readonly string ShortcutPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup), "Stagehand.lnk");
 
         public static bool Exists => File.Exists(ShortcutPath);
 
         public static void Create() => Create(File.Exists(Installer.InstalledExe) ? Installer.InstalledExe : Program.ExePath);
 
-        public static void Create(string exe) => Shortcut.Create(ShortcutPath, exe, "--agent", "Graphite Lyrics background agent");
+        public static void Create(string exe) => Shortcut.Create(ShortcutPath, exe, "--agent", "Stagehand background agent");
 
         public static void Remove()
         {

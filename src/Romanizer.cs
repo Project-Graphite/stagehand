@@ -3,7 +3,7 @@ using System.Linq;
 using System.Text;
 using Windows.Globalization;
 
-namespace GraphiteLyrics
+namespace Stagehand
 {
     static class Romanizer
     {

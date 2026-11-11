@@ -9,7 +9,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 
-namespace GraphiteLyrics
+namespace Stagehand
 {
     sealed class LyricWord
     {
@@ -37,14 +37,14 @@ namespace GraphiteLyrics
     static class LyricsProvider
     {
         static readonly HttpClient Http = CreateClient();
-        static readonly string CacheDir = Path.Combine(Log.DataDir, "cache");
+        static readonly string CacheDir = Path.Combine(Log.DataDir, "lyrics");
         const string InstrumentalMarker = "[instrumental]";
         const double MinimumAutoGapSeconds = 6;
 
         static HttpClient CreateClient()
         {
             var client = new HttpClient { Timeout = TimeSpan.FromSeconds(12) };
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("GraphiteLyrics/0.1 (https://github.com/Project-Graphite/graphite-lyrics)");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("Stagehand/0.2 (https://github.com/Project-Graphite/stagehand)");
             return client;
         }
 
@@ -89,13 +89,20 @@ namespace GraphiteLyrics
             var response = await Http.GetAsync(url);
             if (!response.IsSuccessStatusCode) return null;
             var results = new JavaScriptSerializer { MaxJsonLength = int.MaxValue }.Deserialize<List<Dictionary<string, object>>>(await response.Content.ReadAsStringAsync());
+            var wantedTitle = Simplify(title);
+            var wantedArtist = Simplify(artist);
             var all = results.Select(r => new
             {
+                Title = Simplify(r.TryGetValue("trackName", out var n) ? n as string : null),
+                Artist = Simplify(r.TryGetValue("artistName", out var a) ? a as string : null),
                 Synced = r.TryGetValue("syncedLyrics", out var s) ? s as string : null,
                 Plain = r.TryGetValue("plainLyrics", out var p) ? p as string : null,
                 Instrumental = r.TryGetValue("instrumental", out var i) && i is bool flag && flag,
                 Duration = r.TryGetValue("duration", out var d) && d != null ? Convert.ToDouble(d, CultureInfo.InvariantCulture) : 0
             }).ToList();
+            all = all.Where(c => c.Title.Length > 0 && (c.Title.Contains(wantedTitle) || wantedTitle.Contains(c.Title))
+                                 && (wantedArtist.Length == 0 || c.Artist.Contains(wantedArtist) || (c.Artist.Length > 0 && wantedArtist.Contains(c.Artist)))
+                                 && (track.DurationSeconds <= 0 || c.Duration <= 0 || Math.Abs(c.Duration - track.DurationSeconds) <= (track.IsVideo ? Math.Max(45, c.Duration * 0.25) : Math.Max(20, c.Duration * 0.1)))).ToList();
             var candidates = all.Where(c => !string.IsNullOrWhiteSpace(c.Synced) || !string.IsNullOrWhiteSpace(c.Plain)).ToList();
             if (candidates.Count == 0) return all.Any(c => c.Instrumental) ? InstrumentalMarker : null;
             var best = candidates
@@ -104,6 +111,8 @@ namespace GraphiteLyrics
                 .First();
             return !string.IsNullOrWhiteSpace(best.Synced) ? best.Synced : best.Plain;
         }
+
+        static string Simplify(string text) => new string((text ?? "").ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
 
         static string SafeName(string key)
         {
@@ -187,7 +196,7 @@ namespace GraphiteLyrics
             }
 
             var tokens = Tokenize(body.Trim());
-            var sung = Math.Min(end - start, Math.Max(1.2, 0.09 * body.Length + 0.8));
+            var sung = Math.Min((end - start) * 0.92, 0.3 * body.Length + 1.2);
             var weights = tokens.Select(t => 1.0 + t.Trim().Length).ToList();
             var total = weights.Sum();
             var cursor = start;
@@ -228,7 +237,7 @@ namespace GraphiteLyrics
 
     static class Log
     {
-        public static readonly string DataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GraphiteLyrics");
+        public static readonly string DataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Stagehand");
 
         public static void Write(string message)
         {

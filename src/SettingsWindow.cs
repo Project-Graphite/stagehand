@@ -1,6 +1,8 @@
 using System;
 using System.Linq;
+using System.Net.Http;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -8,7 +10,7 @@ using System.Windows.Interop;
 using System.Windows.Markup;
 using System.Windows.Media;
 
-namespace GraphiteLyrics
+namespace Stagehand
 {
     sealed class SettingsWindow : Window
     {
@@ -16,12 +18,41 @@ namespace GraphiteLyrics
 <Border xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml'
         Background='#0C0C0E' Padding='28,24,28,24' TextElement.FontFamily='Segoe UI Variable Text, Segoe UI' TextElement.Foreground='#E8E8EA'>
 " + GraphiteXaml.Resources + @"
-  <StackPanel>
-    <TextBlock Text='Graphite Lyrics' FontSize='24' FontWeight='SemiBold'/>
-    <StackPanel Orientation='Horizontal' Margin='0,6,0,20'>
-      <Ellipse x:Name='StatusDot' Width='8' Height='8' Margin='0,0,8,0' VerticalAlignment='Center'/>
-      <TextBlock x:Name='StatusText' Style='{StaticResource Hint}'/>
+  <DockPanel>
+    <StackPanel DockPanel.Dock='Top'>
+      <TextBlock Text='Stagehand' FontSize='24' FontWeight='SemiBold'/>
+      <StackPanel Orientation='Horizontal' Margin='0,6,0,20'>
+        <Ellipse x:Name='StatusDot' Width='8' Height='8' Margin='0,0,8,0' VerticalAlignment='Center'/>
+        <TextBlock x:Name='StatusText' Style='{StaticResource Hint}'/>
+      </StackPanel>
     </StackPanel>
+
+    <DockPanel DockPanel.Dock='Bottom' Margin='0,6,0,0' LastChildFill='False'>
+      <Button x:Name='ExitButton' Content='Stop Stagehand' Style='{StaticResource Danger}' DockPanel.Dock='Left'/>
+      <Button x:Name='SaveButton' Content='Save' Style='{StaticResource Primary}' DockPanel.Dock='Right'/>
+      <Button x:Name='CancelButton' Content='Cancel' Style='{StaticResource Quiet}' DockPanel.Dock='Right' Margin='0,0,8,0'/>
+    </DockPanel>
+
+    <ScrollViewer VerticalScrollBarVisibility='Auto' Margin='0,0,-16,0' Padding='0,0,16,0'>
+    <StackPanel>
+
+    <Border Style='{StaticResource Panel}'>
+      <StackPanel>
+        <TextBlock Text='Case' Style='{StaticResource Heading}'/>
+        <TextBlock Text='These switch right away, without Save, and stay as you leave them after a restart.' Style='{StaticResource Hint}' Margin='0,4,0,14'/>
+        <DockPanel Margin='0,0,0,4'>
+          <TextBlock Text='RGB lighting' Style='{StaticResource Label}'/>
+          <ToggleButton x:Name='LightsToggle' Style='{StaticResource Switch}' HorizontalAlignment='Right'/>
+        </DockPanel>
+        <TextBlock Text='Everything L-Connect 3 lights, including the motherboard, GPU and RAM through OpenRGB. Fan and pump speeds and the screens stay as they are.' Style='{StaticResource Hint}' Margin='0,0,0,14'/>
+        <DockPanel Margin='0,0,0,4'>
+          <TextBlock Text='Screens' Style='{StaticResource Label}'/>
+          <ToggleButton x:Name='ScreensToggle' Style='{StaticResource Switch}' HorizontalAlignment='Right'/>
+        </DockPanel>
+        <TextBlock Text='The cooler, LCD fan and 9.2-inch screens turn off. The 9.2-inch screen leaves Windows display mode while off, so switching takes a few seconds. RGB stays as it is.' Style='{StaticResource Hint}'/>
+        <TextBlock x:Name='CaseError' Style='{StaticResource Hint}' Foreground='#F2A09A' TextWrapping='Wrap' Margin='0,12,0,0' Visibility='Collapsed'/>
+      </StackPanel>
+    </Border>
 
     <Border Style='{StaticResource Panel}'>
       <StackPanel>
@@ -86,7 +117,7 @@ namespace GraphiteLyrics
           <TextBlock Text='Show tray icon' Style='{StaticResource Label}'/>
           <ToggleButton x:Name='TrayToggle' Style='{StaticResource Switch}' HorizontalAlignment='Right'/>
         </DockPanel>
-        <TextBlock Text='Without it, open Graphite Lyrics from the Start menu to change settings or stop it.' Style='{StaticResource Hint}' Margin='0,0,0,14'/>
+        <TextBlock Text='Without it, open Stagehand from the Start menu to change settings or stop it.' Style='{StaticResource Hint}' Margin='0,0,0,14'/>
         <DockPanel LastChildFill='False'>
           <TextBlock Text='Return to the idle loop after pausing' Style='{StaticResource Label}' DockPanel.Dock='Left'/>
           <Border Style='{StaticResource Segments}' DockPanel.Dock='Right'>
@@ -100,18 +131,16 @@ namespace GraphiteLyrics
       </StackPanel>
     </Border>
 
-    <DockPanel Margin='0,6,0,0' LastChildFill='False'>
-      <Button x:Name='ExitButton' Content='Stop lyrics screen' Style='{StaticResource Danger}' DockPanel.Dock='Left'/>
-      <Button x:Name='SaveButton' Content='Save' Style='{StaticResource Primary}' DockPanel.Dock='Right'/>
-      <Button x:Name='CancelButton' Content='Cancel' Style='{StaticResource Quiet}' DockPanel.Dock='Right' Margin='0,0,8,0'/>
-    </DockPanel>
-  </StackPanel>
+    </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
 </Border>";
 
         [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
 
         readonly Settings saved;
         readonly Settings draft;
+        readonly CaseSwitches switches = CaseSwitches.Load();
         readonly IdleBackground preview = new IdleBackground { Width = 486, Height = 116 };
         readonly FrameworkElement root;
         bool startWithWindows;
@@ -122,9 +151,10 @@ namespace GraphiteLyrics
             saved = settings;
             draft = settings.Copy();
             startWithWindows = StartupShortcut.Exists;
-            Title = "Graphite Lyrics";
+            Title = "Stagehand";
             Width = 600;
             SizeToContent = SizeToContent.Height;
+            MaxHeight = SystemParameters.WorkArea.Height - 48;
             ResizeMode = ResizeMode.NoResize;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             Background = Graphite.Brush(Graphite.Paper);
@@ -159,6 +189,9 @@ namespace GraphiteLyrics
             Toggle("StartupToggle", startWithWindows, value => startWithWindows = value);
             Choice("Idle", new[] { "5", "20", "60" }, draft.IdleAfterPauseSeconds.ToString(), value => draft.IdleAfterPauseSeconds = int.Parse(value));
 
+            CaseSwitch("LightsToggle", switches.LightsOff, switches.SetLightsOffAsync);
+            CaseSwitch("ScreensToggle", switches.ScreensOff, switches.SetScreensOffAsync);
+
             Find<Button>("SaveButton").Click += (s, e) => Save();
             Find<Button>("CancelButton").Click += (s, e) => Close();
             Find<Button>("ExitButton").Click += (s, e) => { Program.StopAgent(); Close(); };
@@ -186,6 +219,36 @@ namespace GraphiteLyrics
             toggle.IsChecked = value;
             toggle.Checked += (s, e) => { set(true); Changed(); };
             toggle.Unchecked += (s, e) => { set(false); Changed(); };
+        }
+
+        void CaseSwitch(string name, bool off, Func<bool, Task> setOff)
+        {
+            var toggle = Find<ToggleButton>(name);
+            toggle.IsChecked = !off;
+            var reverting = false;
+            RoutedEventHandler flipped = async (s, e) =>
+            {
+                if (reverting) return;
+                var error = Find<TextBlock>("CaseError");
+                toggle.IsEnabled = false;
+                try
+                {
+                    await setOff(toggle.IsChecked != true);
+                    error.Visibility = Visibility.Collapsed;
+                }
+                catch (Exception failure) when (failure is HttpRequestException || failure is TaskCanceledException || failure is InvalidOperationException)
+                {
+                    Log.Write("case switch: " + failure);
+                    error.Text = "Couldn't switch: " + failure.Message;
+                    error.Visibility = Visibility.Visible;
+                    reverting = true;
+                    toggle.IsChecked = toggle.IsChecked != true;
+                    reverting = false;
+                }
+                toggle.IsEnabled = true;
+            };
+            toggle.Checked += flipped;
+            toggle.Unchecked += flipped;
         }
 
         void Choice(string prefix, string[] options, string current, Action<string> set)

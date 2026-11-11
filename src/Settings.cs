@@ -4,7 +4,7 @@ using System.Text;
 using System.Web.Script.Serialization;
 using System.Windows.Media;
 
-namespace GraphiteLyrics
+namespace Stagehand
 {
     static class Graphite
     {
@@ -28,6 +28,9 @@ namespace GraphiteLyrics
             return brush;
         }
 
+        public static Brush Glass(byte topAlpha, byte bottomAlpha) => new LinearGradientBrush(
+            Color.FromArgb(topAlpha, Ink.R, Ink.G, Ink.B), Color.FromArgb(bottomAlpha, Ink.R, Ink.G, Ink.B), new System.Windows.Point(0, 0), new System.Windows.Point(0.4, 1));
+
         public static double Settle(double t)
         {
             if (t <= 0) return 0;
@@ -47,7 +50,7 @@ namespace GraphiteLyrics
     {
         public string IdleBackgroundPath = "";
         public string IdleAnchor = "Center";
-        public double LyricOffsetSeconds = 0.25;
+        public double LyricOffsetSeconds = 0.1;
         public bool ShowStats = true;
         public bool KeepMouseOff = true;
         public int IdleAfterPauseSeconds = 20;
@@ -89,15 +92,23 @@ namespace GraphiteLyrics
 
         public void WatchFile(System.Windows.Threading.Dispatcher dispatcher)
         {
+            WatchDataFile("settings.json", dispatcher, () =>
+            {
+                CopyFrom(Load());
+                Changed?.Invoke();
+            });
+        }
+
+        public static void WatchDataFile(string name, System.Windows.Threading.Dispatcher dispatcher, Action reloaded)
+        {
             Directory.CreateDirectory(Log.DataDir);
             var reload = new System.Windows.Threading.DispatcherTimer(TimeSpan.FromMilliseconds(150), System.Windows.Threading.DispatcherPriority.Normal, (s, e) =>
             {
                 ((System.Windows.Threading.DispatcherTimer)s).Stop();
-                CopyFrom(Load());
-                Changed?.Invoke();
+                reloaded();
             }, dispatcher);
             reload.Stop();
-            var watcher = new FileSystemWatcher(Log.DataDir, "settings.json") { NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.FileName };
+            var watcher = new FileSystemWatcher(Log.DataDir, name) { NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size | NotifyFilters.FileName };
             FileSystemEventHandler restart = (s, e) => dispatcher.BeginInvoke(new Action(() => { reload.Stop(); reload.Start(); }));
             watcher.Changed += restart;
             watcher.Created += restart;

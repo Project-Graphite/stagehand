@@ -9,14 +9,14 @@ using System.Windows.Interop;
 using System.Windows.Threading;
 using Microsoft.Win32;
 
-namespace GraphiteLyrics
+namespace Stagehand
 {
     static class Program
     {
-        const string AgentMutexName = "GraphiteLyrics.Agent";
-        const string AppMutexName = "GraphiteLyrics.App";
-        const string QuitEventName = "GraphiteLyrics.Quit";
-        const string ShowSettingsEventName = "GraphiteLyrics.ShowSettings";
+        const string AgentMutexName = "Stagehand.Agent";
+        const string AppMutexName = "Stagehand.App";
+        const string QuitEventName = "Stagehand.Quit";
+        const string ShowSettingsEventName = "Stagehand.ShowSettings";
 
         [STAThread]
         static void Main(string[] args)
@@ -68,7 +68,7 @@ namespace GraphiteLyrics
 
         static void RunUninstall(bool quiet)
         {
-            if (!quiet && MessageBox.Show("Uninstall Graphite Lyrics?\n\nYour settings and cached lyrics stay in " + Log.DataDir + ".", "Graphite Lyrics", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
+            if (!quiet && MessageBox.Show("Uninstall Stagehand?\n\nYour settings and cached lyrics stay in " + Log.DataDir + ".", "Stagehand", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
             Installer.Uninstall();
         }
 
@@ -173,7 +173,32 @@ namespace GraphiteLyrics
                         window.Show();
                     }
                     else new WindowInteropHelper(window).EnsureHandle();
-                    ScreenPlacement.StartCursorGuard();
+                    ScreenPlacement.StartScreenGuard();
+                }
+
+                if (!preview)
+                {
+                    var switches = CaseSwitches.Load();
+                    window.SetBlackout(switches.ScreensOff);
+                    Settings.WatchDataFile(CaseSwitches.FileName, app.Dispatcher, () =>
+                    {
+                        switches = CaseSwitches.Load();
+                        window.SetBlackout(switches.ScreensOff);
+                    });
+                    var keepScreensOff = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
+                    keepScreensOff.Tick += async (s, e) =>
+                    {
+                        if (!switches.ScreensOff) return;
+                        try
+                        {
+                            await CaseSwitches.ApplyScreensOffAsync();
+                        }
+                        catch (Exception error) when (error is System.Net.Http.HttpRequestException || error is System.Threading.Tasks.TaskCanceledException || error is InvalidOperationException)
+                        {
+                            Log.Write("screens off: " + error.Message);
+                        }
+                    };
+                    keepScreensOff.Start();
                 }
 
                 var quit = new EventWaitHandle(false, EventResetMode.AutoReset, QuitEventName);
@@ -182,11 +207,11 @@ namespace GraphiteLyrics
                 using (var tray = new System.Windows.Forms.NotifyIcon
                 {
                     Icon = System.Drawing.Icon.ExtractAssociatedIcon(ExePath),
-                    Text = "Graphite Lyrics",
+                    Text = "Stagehand",
                     Visible = settings.ShowTrayIcon,
                     ContextMenu = new System.Windows.Forms.ContextMenu(new[]
                     {
-                        new System.Windows.Forms.MenuItem("Open Graphite Lyrics", (s, e) => Process.Start(new ProcessStartInfo(ExePath) { UseShellExecute = false })),
+                        new System.Windows.Forms.MenuItem("Open Stagehand", (s, e) => Process.Start(new ProcessStartInfo(ExePath) { UseShellExecute = false })),
                         new System.Windows.Forms.MenuItem("-"),
                         new System.Windows.Forms.MenuItem("Quit", (s, e) => window.FadeOutAndExit(app))
                     })

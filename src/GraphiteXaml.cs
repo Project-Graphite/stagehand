@@ -1,4 +1,4 @@
-namespace GraphiteLyrics
+namespace Stagehand
 {
     static class GraphiteXaml
     {
@@ -71,6 +71,19 @@ namespace GraphiteLyrics
     </Style>
     <Style x:Key='Segments' TargetType='Border'><Setter Property='BorderBrush' Value='#26262C'/><Setter Property='BorderThickness' Value='1'/><Setter Property='CornerRadius' Value='8'/><Setter Property='Padding' Value='3'/></Style>
     <Style x:Key='Invisible' TargetType='RepeatButton'><Setter Property='Template'><Setter.Value><ControlTemplate TargetType='RepeatButton'><Border Background='Transparent'/></ControlTemplate></Setter.Value></Setter></Style>
+    <Style TargetType='ScrollBar'>
+      <Setter Property='Width' Value='6'/><Setter Property='MinWidth' Value='6'/>
+      <Setter Property='Template'><Setter.Value><ControlTemplate TargetType='ScrollBar'>
+        <Track x:Name='PART_Track' IsDirectionReversed='True'>
+          <Track.DecreaseRepeatButton><RepeatButton Command='ScrollBar.PageUpCommand' Style='{StaticResource Invisible}'/></Track.DecreaseRepeatButton>
+          <Track.IncreaseRepeatButton><RepeatButton Command='ScrollBar.PageDownCommand' Style='{StaticResource Invisible}'/></Track.IncreaseRepeatButton>
+          <Track.Thumb><Thumb><Thumb.Template><ControlTemplate TargetType='Thumb'>
+            <Border x:Name='t' CornerRadius='3' Background='#26262C'/>
+            <ControlTemplate.Triggers><Trigger Property='IsMouseOver' Value='True'><Setter TargetName='t' Property='Background' Value='#8B8B95'/></Trigger></ControlTemplate.Triggers>
+          </ControlTemplate></Thumb.Template></Thumb></Track.Thumb>
+        </Track>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
     <Style x:Key='Range' TargetType='Slider'>
       <Setter Property='Template'><Setter.Value><ControlTemplate TargetType='Slider'>
         <Grid Height='22'>

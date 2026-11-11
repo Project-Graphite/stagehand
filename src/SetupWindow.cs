@@ -8,7 +8,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Interop;
 using System.Windows.Markup;
 
-namespace GraphiteLyrics
+namespace Stagehand
 {
     sealed class SetupWindow : Window
     {
@@ -36,7 +36,7 @@ namespace GraphiteLyrics
 
     <Border Style='{StaticResource Panel}' Margin='0,20,0,14'>
       <StackPanel>
-        <TextBlock Style='{StaticResource Hint}' Margin='0,0,0,16' Text='Synced, animated lyrics for the Lian Li 9.2-inch case screen. It follows whatever Windows is playing and shows an idle loop when nothing is.'/>
+        <TextBlock Style='{StaticResource Hint}' Margin='0,0,0,16' Text='Runs the case from backstage: synced lyrics or a now-watching card on the Lian Li 9.2-inch screen, and switches for every RGB light and screen in the case.'/>
         <TextBlock Text='Location' Style='{StaticResource Label}'/>
         <TextBlock x:Name='Location' FontFamily='Cascadia Mono, Consolas' FontSize='12' Foreground='#8B8B95' TextWrapping='Wrap' Margin='0,4,0,16'/>
         <DockPanel Margin='0,0,0,14'>
@@ -44,7 +44,7 @@ namespace GraphiteLyrics
           <ToggleButton x:Name='StartupToggle' Style='{StaticResource Switch}' HorizontalAlignment='Right'/>
         </DockPanel>
         <DockPanel>
-          <TextBlock Text='Open Graphite Lyrics when done' Style='{StaticResource Label}'/>
+          <TextBlock Text='Open Stagehand when done' Style='{StaticResource Label}'/>
           <ToggleButton x:Name='OpenToggle' Style='{StaticResource Switch}' HorizontalAlignment='Right' IsChecked='True'/>
         </DockPanel>
       </StackPanel>
@@ -63,7 +63,7 @@ namespace GraphiteLyrics
 
         public SetupWindow()
         {
-            Title = "Graphite Lyrics Setup";
+            Title = "Stagehand Setup";
             Width = 520;
             SizeToContent = SizeToContent.Height;
             ResizeMode = ResizeMode.NoResize;
@@ -73,7 +73,7 @@ namespace GraphiteLyrics
             Content = root;
 
             var installed = Installer.InstalledVersion;
-            Find<TextBlock>("Heading").Text = installed == null ? "Install Graphite Lyrics" : "Update Graphite Lyrics";
+            Find<TextBlock>("Heading").Text = installed == null ? "Install Stagehand" : "Update Stagehand";
             Find<TextBlock>("Subheading").Text = installed == null ? "Version " + Installer.Version
                 : installed == "unknown" ? "Updating to version " + Installer.Version
                 : "Version " + installed + " → " + Installer.Version;
