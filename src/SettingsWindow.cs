@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Markup;
 using System.Windows.Media;
@@ -33,6 +34,8 @@ namespace Stagehand
           <RadioButton x:Name='TabLyrics' Content='Lyrics' GroupName='Tab' Style='{StaticResource Tab}'/>
           <RadioButton x:Name='TabLook' Content='Look' GroupName='Tab' Style='{StaticResource Tab}'/>
           <RadioButton x:Name='TabIdle' Content='Idle' GroupName='Tab' Style='{StaticResource Tab}'/>
+          <RadioButton x:Name='TabRoutines' Content='Routines' GroupName='Tab' Style='{StaticResource Tab}'/>
+          <RadioButton x:Name='TabGaming' Content='Gaming' GroupName='Tab' Style='{StaticResource Tab}'/>
           <RadioButton x:Name='TabGeneral' Content='General' GroupName='Tab' Style='{StaticResource Tab}'/>
         </StackPanel>
       </Border>
@@ -127,10 +130,15 @@ namespace Stagehand
             </StackPanel>
           </Border>
         </DockPanel>
-        <DockPanel>
+        <DockPanel Margin='0,0,0,14'>
           <TextBlock Text='Cover art and title' Style='{StaticResource Label}'/>
           <ToggleButton x:Name='CoverToggle' Style='{StaticResource Switch}' HorizontalAlignment='Right'/>
         </DockPanel>
+        <DockPanel Margin='0,0,0,4'>
+          <TextBlock Text='Audio visualizer' Style='{StaticResource Label}'/>
+          <ToggleButton x:Name='VisualizerToggle' Style='{StaticResource Switch}' HorizontalAlignment='Right'/>
+        </DockPanel>
+        <TextBlock Text='Bars behind the lyrics that move with whatever Windows is playing, in the colour of the cover.' Style='{StaticResource Hint}'/>
       </StackPanel>
     </Border>
     </StackPanel>
@@ -215,6 +223,113 @@ namespace Stagehand
     </Border>
     </StackPanel>
 
+    <StackPanel x:Name='PageRoutines' Visibility='Collapsed'>
+    <Border Style='{StaticResource Panel}'>
+      <StackPanel>
+        <TextBlock Text='Sleep timer' Style='{StaticResource Heading}'/>
+        <TextBlock Text='Fades the music out over the last minute, pauses it and puts the volume back. Starts right away, without Save.' Style='{StaticResource Hint}' Margin='0,4,0,14'/>
+        <DockPanel Margin='0,0,0,10'>
+          <Button x:Name='SleepCancel' Content='Cancel' Style='{StaticResource Quiet}' DockPanel.Dock='Right'/>
+          <TextBlock x:Name='SleepStatus' Style='{StaticResource Label}' VerticalAlignment='Center'/>
+        </DockPanel>
+        <StackPanel Orientation='Horizontal'>
+          <Button x:Name='Sleep15' Content='15 min' Style='{StaticResource Secondary}' Margin='0,0,6,0'/>
+          <Button x:Name='Sleep30' Content='30 min' Style='{StaticResource Secondary}' Margin='0,0,6,0'/>
+          <Button x:Name='Sleep60' Content='1 hour' Style='{StaticResource Secondary}' Margin='0,0,6,0'/>
+          <Button x:Name='Sleep120' Content='2 hours' Style='{StaticResource Secondary}'/>
+        </StackPanel>
+        <StackPanel x:Name='SleepCase' Visibility='Collapsed' Margin='0,14,0,0'>
+          <DockPanel Margin='0,0,0,14'>
+            <TextBlock Text='Then turn off the case lights' Style='{StaticResource Label}'/>
+            <ToggleButton x:Name='SleepLightsToggle' Style='{StaticResource Switch}' HorizontalAlignment='Right'/>
+          </DockPanel>
+          <DockPanel>
+            <TextBlock Text='Then turn off the case screens' Style='{StaticResource Label}'/>
+            <ToggleButton x:Name='SleepScreensToggle' Style='{StaticResource Switch}' HorizontalAlignment='Right'/>
+          </DockPanel>
+        </StackPanel>
+      </StackPanel>
+    </Border>
+
+    <Border x:Name='NightPanel' Style='{StaticResource Panel}' Visibility='Collapsed'>
+      <StackPanel>
+        <TextBlock Text='Night mode' Style='{StaticResource Heading}'/>
+        <TextBlock Text='Turns the case off every night and back on in the morning. Anything you switch back on during the night stays on.' Style='{StaticResource Hint}' Margin='0,4,0,14'/>
+        <DockPanel Margin='0,0,0,14'>
+          <TextBlock Text='Every night' Style='{StaticResource Label}'/>
+          <ToggleButton x:Name='NightToggle' Style='{StaticResource Switch}' HorizontalAlignment='Right'/>
+        </DockPanel>
+        <DockPanel Margin='0,0,0,14'>
+          <TextBlock Text='Off at' Style='{StaticResource Label}' Width='150'/>
+          <ComboBox x:Name='NightStartPick' Style='{StaticResource Pick}'/>
+        </DockPanel>
+        <DockPanel Margin='0,0,0,14'>
+          <TextBlock Text='Back on at' Style='{StaticResource Label}' Width='150'/>
+          <ComboBox x:Name='NightEndPick' Style='{StaticResource Pick}'/>
+        </DockPanel>
+        <DockPanel Margin='0,0,0,14'>
+          <TextBlock Text='RGB lighting' Style='{StaticResource Label}'/>
+          <ToggleButton x:Name='NightLightsToggle' Style='{StaticResource Switch}' HorizontalAlignment='Right'/>
+        </DockPanel>
+        <DockPanel>
+          <TextBlock Text='Screens' Style='{StaticResource Label}'/>
+          <ToggleButton x:Name='NightScreensToggle' Style='{StaticResource Switch}' HorizontalAlignment='Right'/>
+        </DockPanel>
+      </StackPanel>
+    </Border>
+
+    <Border Style='{StaticResource Panel}'>
+      <StackPanel>
+        <TextBlock Text='Keyboard shortcuts' Style='{StaticResource Heading}'/>
+        <TextBlock Text='Work from any app. Click one, then press the keys with Ctrl, Alt, Shift or Win. Backspace clears it, Esc keeps it.' Style='{StaticResource Hint}' TextWrapping='Wrap' Margin='0,4,0,14'/>
+        <StackPanel x:Name='HotkeyRows'/>
+      </StackPanel>
+    </Border>
+    </StackPanel>
+
+    <StackPanel x:Name='PageGaming' Visibility='Collapsed'>
+    <Border Style='{StaticResource Panel}'>
+      <StackPanel>
+        <TextBlock Text='Game mode' Style='{StaticResource Heading}'/>
+        <TextBlock Text='While a full-screen game runs, the lyrics screen shows the time, GPU temperature and load, VRAM and CPU load, with the song and current lyric along the bottom. Full-screen video from the app playing music does not count.' Style='{StaticResource Hint}' TextWrapping='Wrap' Margin='0,4,0,14'/>
+        <DockPanel Margin='0,0,0,14'>
+          <TextBlock Text='Game HUD' Style='{StaticResource Label}'/>
+          <ToggleButton x:Name='GameToggle' Style='{StaticResource Switch}' HorizontalAlignment='Right'/>
+        </DockPanel>
+        <StackPanel x:Name='GameCase' Visibility='Collapsed'>
+          <DockPanel Margin='0,0,0,10'>
+            <TextBlock Text='Game lighting' Style='{StaticResource Label}'/>
+            <ToggleButton x:Name='GameLightsToggle' Style='{StaticResource Switch}' HorizontalAlignment='Right'/>
+          </DockPanel>
+          <StackPanel x:Name='GameColors' Orientation='Horizontal' Margin='0,0,0,6'/>
+          <TextBlock Text='The case lights switch to this colour in game mode and go back afterwards.' Style='{StaticResource Hint}'/>
+        </StackPanel>
+      </StackPanel>
+    </Border>
+
+    <Border x:Name='HeatPanel' Style='{StaticResource Panel}' Visibility='Collapsed'>
+      <StackPanel>
+        <TextBlock Text='Heat alert' Style='{StaticResource Heading}'/>
+        <TextBlock x:Name='HeatHint' Style='{StaticResource Hint}' TextWrapping='Wrap' Margin='0,4,0,14'/>
+        <DockPanel Margin='0,0,0,14'>
+          <TextBlock Text='Pulse the case lights red' Style='{StaticResource Label}'/>
+          <ToggleButton x:Name='HeatToggle' Style='{StaticResource Switch}' HorizontalAlignment='Right'/>
+        </DockPanel>
+        <DockPanel LastChildFill='False'>
+          <TextBlock Text='GPU limit' Style='{StaticResource Label}' DockPanel.Dock='Left'/>
+          <Border Style='{StaticResource Segments}' DockPanel.Dock='Right'>
+            <StackPanel Orientation='Horizontal'>
+              <RadioButton x:Name='Heat75' Content='75 °C' GroupName='Heat' Style='{StaticResource Segment}'/>
+              <RadioButton x:Name='Heat80' Content='80 °C' GroupName='Heat' Style='{StaticResource Segment}'/>
+              <RadioButton x:Name='Heat85' Content='85 °C' GroupName='Heat' Style='{StaticResource Segment}'/>
+              <RadioButton x:Name='Heat90' Content='90 °C' GroupName='Heat' Style='{StaticResource Segment}'/>
+            </StackPanel>
+          </Border>
+        </DockPanel>
+      </StackPanel>
+    </Border>
+    </StackPanel>
+
     <StackPanel x:Name='PageGeneral' Visibility='Collapsed'>
     <Border Style='{StaticResource Panel}'>
       <StackPanel>
@@ -255,7 +370,6 @@ namespace Stagehand
 
         readonly Settings saved;
         readonly Settings draft;
-        readonly CaseSwitches switches = CaseSwitches.Load();
         readonly NowPlayingWatcher nowPlaying = new NowPlayingWatcher();
         TrackInfo nudgeTrack;
         readonly IdleBackground preview = new IdleBackground { Width = 486, Height = 116 };
@@ -306,6 +420,7 @@ namespace Stagehand
                 var poll = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
                 poll.Tick += (a, b) =>
                 {
+                    ShowSleep();
                     if (nowPlaying.Poll().Track != null || nudgeTrack == null) return;
                     nudgeTrack = null;
                     ShowNudge();
@@ -324,16 +439,58 @@ namespace Stagehand
             Choice("Color", new[] { "White", "Cover" }, draft.HighlightColor, value => draft.HighlightColor = value);
             Choice("Background", new[] { "Cover", "Idle" }, draft.BackgroundStyle, value => draft.BackgroundStyle = value);
             Toggle("CoverToggle", draft.ShowCover, value => draft.ShowCover = value);
+            Toggle("VisualizerToggle", draft.MusicVisualizer, value => draft.MusicVisualizer = value);
+
+            foreach (var minutes in new[] { 15, 30, 60, 120 })
+                Find<Button>("Sleep" + minutes).Click += (s, e) =>
+                {
+                    new SleepTimer { Until = DateTime.UtcNow.AddMinutes(minutes), Lights = caseAvailable && saved.SleepLights, Screens = caseAvailable && saved.SleepScreens }.Save();
+                    ShowSleep();
+                };
+            Find<Button>("SleepCancel").Click += (s, e) => { SleepTimer.Cancel(); ShowSleep(); };
+            Remembered("SleepLightsToggle", saved.SleepLights, value => saved.SleepLights = draft.SleepLights = value);
+            Remembered("SleepScreensToggle", saved.SleepScreens, value => saved.SleepScreens = draft.SleepScreens = value);
+            ShowSleep();
+            var times = Enumerable.Range(0, 48).Select(half => TimeSpan.FromMinutes(30 * half).ToString(@"hh\:mm")).Select(time => new KeyValuePair<string, string>(time, time)).ToList();
+            Toggle("NightToggle", draft.NightEnabled, value => draft.NightEnabled = value);
+            Pick("NightStartPick", times, draft.NightStart, value => draft.NightStart = value);
+            Pick("NightEndPick", times, draft.NightEnd, value => draft.NightEnd = value);
+            Toggle("NightLightsToggle", draft.NightLights, value => draft.NightLights = value);
+            Toggle("NightScreensToggle", draft.NightScreens, value => draft.NightScreens = value);
+            Toggle("GameToggle", draft.GameMode, value => draft.GameMode = value);
+            Toggle("GameLightsToggle", draft.GameLighting, value => { draft.GameLighting = value; ShowSwatches(); });
+            foreach (var hex in new[] { "#FF2D2D", "#FF7A00", "#FFD000", "#00E65A", "#00D9FF", "#2D6BFF", "#9B3DFF", "#FF2DAA", "#FFFFFF" })
+            {
+                var swatch = new Border { Width = 30, Height = 30, CornerRadius = new CornerRadius(15), Margin = new Thickness(0, 0, 10, 0), BorderThickness = new Thickness(3), Cursor = Cursors.Hand, Tag = hex, Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)) };
+                swatch.MouseLeftButtonUp += (s, e) => { draft.GameColor = hex; ShowSwatches(); Changed(); };
+                Find<StackPanel>("GameColors").Children.Add(swatch);
+            }
+            ShowSwatches();
+            Toggle("HeatToggle", draft.HeatAlert, value => draft.HeatAlert = value);
+            Choice("Heat", new[] { "75", "80", "85", "90" }, draft.HeatLimit.ToString(), value => draft.HeatLimit = int.Parse(value));
+            var gpu = new HardwareMonitor();
+            Find<TextBlock>("HeatHint").Text = gpu.HasGpu
+                ? "Watches your " + gpu.GpuName + ", now at " + gpu.GpuTemperature() + " °C. The lights pulse red from the limit until it cools 5 °C below it, then your lighting comes back."
+                : "Needs an NVIDIA graphics card, and none was found.";
+            Find<ToggleButton>("HeatToggle").IsEnabled = gpu.HasGpu;
+            HotkeyRow("Lyrics earlier", () => draft.HotkeyEarlier, value => draft.HotkeyEarlier = value);
+            HotkeyRow("Lyrics later", () => draft.HotkeyLater, value => draft.HotkeyLater = value);
             Toggle("MouseToggle", draft.KeepMouseOff, value => draft.KeepMouseOff = value);
             Toggle("TrayToggle", draft.ShowTrayIcon, value => draft.ShowTrayIcon = value);
             Toggle("StartupToggle", startWithWindows, value => startWithWindows = value);
             Choice("Idle", new[] { "5", "20", "60" }, draft.IdleAfterPauseSeconds.ToString(), value => draft.IdleAfterPauseSeconds = int.Parse(value));
 
-            CaseSwitch("LightsToggle", switches.LightsOff, off => switches.SetLightsOffAsync(off, saved.LightsExcluded));
-            CaseSwitch("ScreensToggle", switches.ScreensOff, off => switches.SetScreensOffAsync(off, saved.ScreensExcluded));
+            CaseSwitch("LightsToggle", off => CaseSwitches.Load().SetLightsOffAsync(off, saved.LightsExcluded));
+            CaseSwitch("ScreensToggle", off => CaseSwitches.Load().SetScreensOffAsync(off, saved.ScreensExcluded));
+            ShowSwitches();
+            Settings.WatchDataFile(CaseSwitches.FileName, Dispatcher, ShowSwitches);
             Loaded += async (s, e) =>
             {
                 if (!await LConnect.Available()) return;
+                caseAvailable = true;
+                Find<StackPanel>("SleepCase").Visibility = Find<Border>("NightPanel").Visibility = Find<StackPanel>("GameCase").Visibility = Find<Border>("HeatPanel").Visibility = Visibility.Visible;
+                HotkeyRow("RGB lighting on or off", () => draft.HotkeyLights, value => draft.HotkeyLights = value, 0);
+                HotkeyRow("Screens on or off", () => draft.HotkeyScreens, value => draft.HotkeyScreens = value, 1);
                 Find<RadioButton>("TabCase").Visibility = Visibility.Visible;
                 if (!pageChosen) Find<RadioButton>("TabCase").IsChecked = true;
                 try
@@ -387,14 +544,109 @@ namespace Stagehand
             toggle.Unchecked += (s, e) => { set(false); Changed(); };
         }
 
-        void CaseSwitch(string name, bool off, Func<bool, Task> setOff)
+        void Remembered(string name, bool value, Action<bool> set)
         {
             var toggle = Find<ToggleButton>(name);
-            toggle.IsChecked = !off;
+            toggle.IsChecked = value;
+            RoutedEventHandler flipped = (s, e) =>
+            {
+                set(toggle.IsChecked == true);
+                saved.Save();
+                Changed();
+            };
+            toggle.Checked += flipped;
+            toggle.Unchecked += flipped;
+        }
+
+        void ShowSwatches()
+        {
+            var swatches = Find<StackPanel>("GameColors");
+            swatches.IsEnabled = draft.GameLighting;
+            swatches.Opacity = draft.GameLighting ? 1 : 0.35;
+            foreach (Border swatch in swatches.Children) swatch.BorderBrush = Graphite.Brush((string)swatch.Tag == draft.GameColor ? Graphite.Ink : Graphite.Surface);
+        }
+
+        void ShowSleep()
+        {
+            var timer = SleepTimer.Load();
+            Find<TextBlock>("SleepStatus").Text = timer == null ? "Off" : "Stops at " + timer.Until.ToLocalTime().ToString("HH:mm");
+            Find<Button>("SleepCancel").Visibility = timer == null ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        void HotkeyRow(string label, Func<string> current, Action<string> set, int? at = null)
+        {
+            var button = new Button { Style = (Style)root.FindResource("Secondary"), MinWidth = 150, Content = Hotkeys.Display(current()) };
+            var note = new TextBlock { Style = (Style)root.FindResource("Hint"), Foreground = Graphite.Brush(Color.FromRgb(0xF2, 0xA0, 0x9A)), Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 0, 8) };
+            var capturing = false;
+            button.Click += (s, e) =>
+            {
+                capturing = true;
+                button.Content = "Press keys…";
+            };
+            button.LostKeyboardFocus += (s, e) =>
+            {
+                capturing = false;
+                button.Content = Hotkeys.Display(current());
+            };
+            button.PreviewKeyDown += (s, e) =>
+            {
+                if (!capturing) return;
+                e.Handled = true;
+                var key = e.Key == Key.System ? e.SystemKey : e.Key;
+                if (new[] { Key.LeftCtrl, Key.RightCtrl, Key.LeftAlt, Key.RightAlt, Key.LeftShift, Key.RightShift, Key.LWin, Key.RWin }.Contains(key)) return;
+                capturing = false;
+                note.Visibility = Visibility.Collapsed;
+                if (key == Key.Back)
+                {
+                    set("");
+                    Changed();
+                }
+                else if (key != Key.Escape && Keyboard.Modifiers != ModifierKeys.None)
+                {
+                    var hotkey = Hotkeys.Format(Keyboard.Modifiers, key);
+                    var ours = new[] { saved.HotkeyLights, saved.HotkeyScreens, saved.HotkeyEarlier, saved.HotkeyLater }.Contains(hotkey);
+                    var handle = new WindowInteropHelper(this).Handle;
+                    if (ours || Hotkeys.Register(handle, 99, hotkey))
+                    {
+                        if (!ours) Hotkeys.UnregisterHotKey(handle, 99);
+                        set(hotkey);
+                        Changed();
+                    }
+                    else
+                    {
+                        note.Text = Hotkeys.Display(hotkey) + " is already used by another app.";
+                        note.Visibility = Visibility.Visible;
+                    }
+                }
+                button.Content = Hotkeys.Display(current());
+            };
+            var row = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
+            DockPanel.SetDock(button, Dock.Right);
+            row.Children.Add(button);
+            row.Children.Add(new TextBlock { Text = label, Style = (Style)root.FindResource("Label"), VerticalAlignment = VerticalAlignment.Center });
+            var rows = Find<StackPanel>("HotkeyRows");
+            var group = new StackPanel { Children = { row, note } };
+            if (at.HasValue) rows.Children.Insert(at.Value, group); else rows.Children.Add(group);
+        }
+
+        bool caseAvailable, showingSwitches;
+
+        void ShowSwitches()
+        {
+            var switches = CaseSwitches.Load();
+            showingSwitches = true;
+            Find<ToggleButton>("LightsToggle").IsChecked = !switches.LightsOff;
+            Find<ToggleButton>("ScreensToggle").IsChecked = !switches.ScreensOff;
+            showingSwitches = false;
+        }
+
+        void CaseSwitch(string name, Func<bool, Task> setOff)
+        {
+            var toggle = Find<ToggleButton>(name);
             var reverting = false;
             RoutedEventHandler flipped = async (s, e) =>
             {
-                if (reverting) return;
+                if (reverting || showingSwitches) return;
                 var error = Find<TextBlock>("CaseError");
                 toggle.IsEnabled = false;
                 try
@@ -417,7 +669,7 @@ namespace Stagehand
             toggle.Unchecked += flipped;
         }
 
-        static readonly string[] Pages = { "Case", "Lyrics", "Look", "Idle", "General" };
+        static readonly string[] Pages = { "Case", "Lyrics", "Look", "Idle", "Routines", "Gaming", "General" };
         bool pageChosen;
 
         public void Open(string page)
@@ -473,11 +725,7 @@ namespace Stagehand
         void Nudge(double step)
         {
             if (nudgeTrack == null) return;
-            var nudges = SyncNudges.Load();
-            nudges.TryGetValue(nudgeTrack.Key, out var current);
-            var next = Math.Round((current + step) * 10) / 10;
-            if (Math.Abs(next) < 0.001) nudges.Remove(nudgeTrack.Key); else nudges[nudgeTrack.Key] = next;
-            SyncNudges.Save(nudges);
+            SyncNudges.Nudge(nudgeTrack.Key, step);
             ShowNudge();
         }
 

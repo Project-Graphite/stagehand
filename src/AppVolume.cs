@@ -9,22 +9,6 @@ namespace Stagehand
 {
     static class AppVolume
     {
-        [ComImport, Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")]
-        class MMDeviceEnumerator { }
-
-        [ComImport, Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-        interface IMMDeviceEnumerator
-        {
-            void EnumAudioEndpoints(int dataFlow, int stateMask, out IntPtr devices);
-            void GetDefaultAudioEndpoint(int dataFlow, int role, out IMMDevice endpoint);
-        }
-
-        [ComImport, Guid("D666063F-1587-4E43-81F1-B948E807363F"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-        interface IMMDevice
-        {
-            void Activate(ref Guid iid, int context, IntPtr parameters, [MarshalAs(UnmanagedType.IUnknown)] out object instance);
-        }
-
         [ComImport, Guid("77AA99A0-1BD6-484F-8BC7-2C654C9A9B6F"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
         interface IAudioSessionManager2
         {
@@ -64,23 +48,23 @@ namespace Stagehand
             void GetMasterVolume(out float level);
         }
 
+        public static string ProcessName(string appId) => Path.GetFileNameWithoutExtension((appId ?? "").Split('!').Last().Split('\\').Last());
+
         static List<ISimpleAudioVolume> Sessions(string appId)
         {
-            var name = Path.GetFileNameWithoutExtension((appId ?? "").Split('!').Last().Split('\\').Last());
+            var name = ProcessName(appId);
             var found = new List<ISimpleAudioVolume>();
             if (name.Length == 0) return found;
-            IMMDevice device;
+            IAudioSessionManager2 manager;
             try
             {
-                ((IMMDeviceEnumerator)new MMDeviceEnumerator()).GetDefaultAudioEndpoint(0, 1, out device);
+                manager = CoreAudio.ActivateOnSpeakers<IAudioSessionManager2>();
             }
             catch (COMException)
             {
                 return found;
             }
-            var iid = typeof(IAudioSessionManager2).GUID;
-            device.Activate(ref iid, 23, IntPtr.Zero, out var manager);
-            ((IAudioSessionManager2)manager).GetSessionEnumerator(out var sessions);
+            manager.GetSessionEnumerator(out var sessions);
             sessions.GetCount(out var count);
             for (var i = 0; i < count; i++)
             {

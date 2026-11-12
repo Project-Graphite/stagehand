@@ -64,6 +64,15 @@ namespace Stagehand
             Directory.CreateDirectory(Log.DataDir);
             File.WriteAllText(FilePath, new JavaScriptSerializer().Serialize(nudges), Encoding.UTF8);
         }
+
+        public static void Nudge(string trackKey, double step)
+        {
+            var nudges = Load();
+            nudges.TryGetValue(trackKey, out var current);
+            var next = Math.Round((current + step) * 10) / 10;
+            if (Math.Abs(next) < 0.001) nudges.Remove(trackKey); else nudges[trackKey] = next;
+            Save(nudges);
+        }
     }
 
     sealed class Settings
@@ -87,6 +96,23 @@ namespace Stagehand
         public string LightsExcluded = "";
         public string ScreensExcluded = "";
         public bool ShowTrayIcon = true;
+        public bool MusicVisualizer;
+        public bool SleepLights = true;
+        public bool SleepScreens = true;
+        public bool NightEnabled;
+        public string NightStart = "01:00";
+        public string NightEnd = "09:00";
+        public bool NightLights = true;
+        public bool NightScreens = true;
+        public string HotkeyLights = "";
+        public string HotkeyScreens = "";
+        public string HotkeyEarlier = "";
+        public string HotkeyLater = "";
+        public bool GameMode;
+        public bool GameLighting;
+        public string GameColor = "#9B3DFF";
+        public bool HeatAlert;
+        public int HeatLimit = 85;
 
         static readonly string FilePath = Path.Combine(Log.DataDir, "settings.json");
 

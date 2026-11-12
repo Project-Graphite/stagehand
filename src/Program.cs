@@ -149,6 +149,11 @@ namespace Stagehand
                         window.Width = double.Parse(size[0], CultureInfo.InvariantCulture);
                         window.Height = double.Parse(size[1], CultureInfo.InvariantCulture);
                     }
+                    if (args.Contains("--game"))
+                    {
+                        window.SetGame(true);
+                        window.SetHardware(new HardwareMonitor().Read(true));
+                    }
                     window.Show();
                     var delay = new DispatcherTimer { Interval = TimeSpan.FromSeconds(double.Parse(args[snapshotIndex + 2], CultureInfo.InvariantCulture)) };
                     delay.Tick += (s, e) => { delay.Stop(); window.SaveSnapshot(args[snapshotIndex + 1]); app.Shutdown(); };
@@ -190,15 +195,22 @@ namespace Stagehand
                     ScreenPlacement.StartScreenGuard();
                 }
 
+                CaseLighting lighting = null;
                 if (!preview)
                 {
                     var switches = CaseSwitches.Load();
+                    lighting = new CaseLighting(settings, () => switches);
+                    settings.Changed += () => lighting.Refresh();
                     window.SetBlackout(switches.BlacksOutCaseScreen);
                     Settings.WatchDataFile(CaseSwitches.FileName, app.Dispatcher, () =>
                     {
                         switches = CaseSwitches.Load();
                         window.SetBlackout(switches.BlacksOutCaseScreen);
+                        lighting.Refresh();
                     });
+                    lighting.Refresh();
+                    new Routines(settings, window);
+                    new Gaming(settings, window, lighting);
                     var keepScreensOff = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
                     keepScreensOff.Tick += async (s, e) =>
                     {
@@ -215,8 +227,13 @@ namespace Stagehand
                     keepScreensOff.Start();
                 }
 
+                Action exit = async () =>
+                {
+                    if (lighting != null) await lighting.StopAsync();
+                    window.FadeOutAndExit(app);
+                };
                 var quit = new EventWaitHandle(false, EventResetMode.AutoReset, QuitEventName);
-                WatchSignal(quit, () => app.Dispatcher.BeginInvoke(new Action(() => window.FadeOutAndExit(app))));
+                WatchSignal(quit, () => app.Dispatcher.BeginInvoke(exit));
 
                 using (var tray = new System.Windows.Forms.NotifyIcon
                 {
@@ -227,7 +244,7 @@ namespace Stagehand
                     {
                         new System.Windows.Forms.MenuItem("Open Stagehand", (s, e) => Process.Start(new ProcessStartInfo(ExePath) { UseShellExecute = false })),
                         new System.Windows.Forms.MenuItem("-"),
-                        new System.Windows.Forms.MenuItem("Quit", (s, e) => window.FadeOutAndExit(app))
+                        new System.Windows.Forms.MenuItem("Quit", (s, e) => exit())
                     })
                 })
                 {

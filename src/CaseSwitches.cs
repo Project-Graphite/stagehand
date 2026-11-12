@@ -7,6 +7,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
+using System.Windows.Media;
 
 namespace Stagehand
 {
@@ -20,6 +21,8 @@ namespace Stagehand
         public bool CaseScreenWasDisplay;
         public int CaseScreenBrightnessBefore;
         public string ScreensSwitched = "";
+        public bool LightsOffForNight;
+        public bool ScreensOffForNight;
 
         public const string FileName = "switches.json";
         static readonly string FilePath = Path.Combine(Log.DataDir, FileName);
@@ -31,7 +34,7 @@ namespace Stagehand
                 : new CaseSwitches();
         }
 
-        void Save()
+        public void Save()
         {
             Directory.CreateDirectory(Log.DataDir);
             File.WriteAllText(FilePath, new JavaScriptSerializer().Serialize(this), Encoding.UTF8);
@@ -46,20 +49,27 @@ namespace Stagehand
             if (off == LightsOff) return;
             if (off)
             {
-                LightingBefore = LConnect.SavedLighting();
+                LightsOff = true;
                 Save();
-                var black = LConnect.Json.Deserialize<Dictionary<string, object>>(LightingBefore);
-                var skip = Ids(excluded);
-                var keep = ((IEnumerable)black["MacList"]).Cast<object>().Select(id => !skip.Contains(Convert.ToString(id))).ToList();
-                foreach (var list in new[] { "MacList", "DirectionList", "ColorTempList", "SelectedList" })
-                    black[list] = ((IEnumerable)black[list]).Cast<object>().Where((item, index) => index >= keep.Count || keep[index]).ToList();
-                var effect = (Dictionary<string, object>)black["LightEffectSet"];
-                effect["UIEffect"] = 3;
-                effect["UserColors"] = new[] { new Dictionary<string, object> { { "A", 255 }, { "R", 0 }, { "G", 0 }, { "B", 0 }, { "ScA", 1 }, { "ScR", 0 }, { "ScG", 0 }, { "ScB", 0 } } };
-                await LConnect.Post("action=SetOpenRgbLightEffect", LConnect.Json.Serialize(black));
+                try
+                {
+                    await Task.Delay(400);
+                    LightingBefore = CaseLighting.Snapshot() ?? LConnect.SavedLighting();
+                    await LConnect.Post(LConnect.SetLighting, LConnect.Solid(LightingBefore, Colors.Black, Ids(excluded)));
+                }
+                catch
+                {
+                    LightsOff = false;
+                    Save();
+                    throw;
+                }
+                CaseLighting.ForgetSnapshot();
             }
-            else await LConnect.Post("action=SetOpenRgbLightEffect", LightingBefore);
-            LightsOff = off;
+            else
+            {
+                await LConnect.Post(LConnect.SetLighting, LightingBefore);
+                LightsOff = false;
+            }
             Save();
         }
 
@@ -146,6 +156,20 @@ namespace Stagehand
             var reply = Json.Deserialize<Dictionary<string, object>>(await Post("action=Device&devicePath=" + Uri.EscapeDataString(Convert.ToBase64String(Encoding.UTF8.GetBytes(path))) + "&type=" + type, body));
             if (!(bool)reply["Success"]) throw new InvalidOperationException(type + " failed: " + reply["Message"]);
             return reply["Data"];
+        }
+
+        public const string SetLighting = "action=SetOpenRgbLightEffect";
+
+        public static string Solid(string lighting, Color colour, HashSet<string> skip)
+        {
+            var solid = Json.Deserialize<Dictionary<string, object>>(lighting);
+            var keep = ((IEnumerable)solid["MacList"]).Cast<object>().Select(id => !skip.Contains(Convert.ToString(id))).ToList();
+            foreach (var list in new[] { "MacList", "DirectionList", "ColorTempList", "SelectedList" })
+                solid[list] = ((IEnumerable)solid[list]).Cast<object>().Where((item, index) => index >= keep.Count || keep[index]).ToList();
+            var effect = (Dictionary<string, object>)solid["LightEffectSet"];
+            effect["UIEffect"] = 3;
+            effect["UserColors"] = new[] { new Dictionary<string, object> { { "A", 255 }, { "R", colour.R }, { "G", colour.G }, { "B", colour.B }, { "ScA", 1 }, { "ScR", colour.ScR }, { "ScG", colour.ScG }, { "ScB", colour.ScB } } };
+            return Json.Serialize(solid);
         }
 
         public static string SavedLighting()

@@ -123,6 +123,8 @@ namespace Stagehand
 
         public void TogglePlayPause() => current?.TryTogglePlayPauseAsync();
 
+        public void Pause() => current?.TryPauseAsync();
+
         public void Next() => current?.TrySkipNextAsync();
 
         public void Previous() => current?.TrySkipPreviousAsync();

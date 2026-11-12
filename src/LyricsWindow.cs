@@ -170,6 +170,21 @@ namespace Stagehand
         Color highlight = Graphite.Ink;
         Color paintedHighlight = Graphite.Ink;
         Color coverAccent = Graphite.Ink;
+        const int SpectrumBands = 56;
+        readonly Canvas spectrumLayer = new Canvas { IsHitTestVisible = false, Visibility = Visibility.Hidden };
+        readonly List<Rectangle> spectrumBars = new List<Rectangle>();
+        readonly GradientStop spectrumBase = new GradientStop(Graphite.Ink, 0), spectrumTip = new GradientStop(Colors.Transparent, 1);
+        AudioSpectrum spectrum;
+        static readonly Color Hot = Color.FromRgb(0xF2, 0x5C, 0x54);
+        readonly Grid hud = new Grid { Opacity = 0, Visibility = Visibility.Hidden, Background = Graphite.Brush(Graphite.Paper) };
+        readonly TextBlock hudClock = Text(72, Graphite.Ink, FontWeights.Bold), hudDate = Text(19, Graphite.Muted, FontWeights.Normal);
+        readonly TextBlock hudGpuTemperature = Text(72, Graphite.Ink, FontWeights.Bold), hudGpuName = Text(19, Graphite.Muted, FontWeights.Normal);
+        readonly TextBlock hudGpuLoad = Text(72, Graphite.Ink, FontWeights.Bold), hudVram = Text(72, Graphite.Ink, FontWeights.Bold), hudVramTotal = Text(19, Graphite.Muted, FontWeights.Normal);
+        readonly TextBlock hudCpu = Text(72, Graphite.Ink, FontWeights.Bold);
+        readonly TextBlock hudSong = Text(21, Graphite.Ink, FontWeights.SemiBold), hudLyric = Text(21, Graphite.Muted, FontWeights.Normal);
+        readonly StackPanel hudStrip = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(10, 14, 10, 0) };
+        bool game;
+        double gameMix;
 
         List<LineView> lines = new List<LineView>();
         LyricsView view = LyricsView.Loading;
@@ -205,9 +220,11 @@ namespace Stagehand
             root.Children.Add(idle);
             root.Children.Add(coverHost);
             root.Children.Add(content);
+            root.Children.Add(hud);
             Content = new Viewbox { Stretch = Stretch.Fill, Child = root };
             content.RenderTransform = contentScale;
             BuildContent();
+            BuildHud();
             ApplySettings();
             SizeChanged += (s, e) => { Fit(e.NewSize.Width, e.NewSize.Height); ApplySettings(); };
             settings.Changed += ApplySettings;
@@ -230,7 +247,26 @@ namespace Stagehand
 
         public void SetBlackout(bool value) => blackout = value;
 
+        public void SetGame(bool value) => game = value;
+
+        public void SetHardware(HardwareReading reading)
+        {
+            var temperature = reading.GpuTemperature;
+            hudGpuTemperature.Text = temperature.HasValue ? temperature + "°" : "—";
+            hudGpuTemperature.Foreground = Graphite.Brush(temperature >= settings.HeatLimit ? Hot : temperature >= settings.HeatLimit - 10 ? Graphite.Wip : Graphite.Ink);
+            hudGpuName.Text = reading.GpuName ?? "No NVIDIA GPU";
+            hudGpuLoad.Text = reading.GpuLoad.HasValue ? reading.GpuLoad + "%" : "—";
+            hudVram.Text = reading.VramUsedGb.HasValue ? reading.VramUsedGb.Value.ToString("0.0") : "—";
+            hudVramTotal.Text = reading.VramTotalGb.HasValue ? "of " + reading.VramTotalGb.Value.ToString("0") + " GB" : " ";
+            hudCpu.Text = reading.CpuLoad.HasValue ? reading.CpuLoad.Value.ToString("0") + "%" : "—";
+        }
+
         public bool ForceControls;
+
+        public NowPlayingWatcher Player => watcher;
+
+        public string TrackKey => track?.Key;
+
 
         public void FadeOutAndExit(Application app)
         {
@@ -311,6 +347,13 @@ namespace Stagehand
             }
             Canvas.SetLeft(videoDetails, showThumb ? 720 : 72);
             videoDetails.Width = designWidth - (showThumb ? 720 : 72) - 80;
+            var slot = designWidth / SpectrumBands;
+            for (var i = 0; i < SpectrumBands; i++)
+            {
+                spectrumBars[i].Width = slot * 0.62;
+                spectrumBars[i].RadiusX = spectrumBars[i].RadiusY = slot * 0.31;
+                Canvas.SetLeft(spectrumBars[i], slot * i + slot * 0.19);
+            }
             layoutDirty = true;
         }
 
@@ -327,6 +370,14 @@ namespace Stagehand
                 }, new Point(0, 0), new Point(1, 0))
             });
 
+            var barFill = new LinearGradientBrush(new GradientStopCollection { spectrumBase, spectrumTip }, new Point(0, 1), new Point(0, 0));
+            for (var i = 0; i < SpectrumBands; i++)
+            {
+                var bar = new Rectangle { Fill = barFill };
+                spectrumBars.Add(bar);
+                spectrumLayer.Children.Add(bar);
+            }
+            content.Children.Add(spectrumLayer);
             content.Children.Add(musicLayer);
 
             RenderOptions.SetBitmapScalingMode(artImage, BitmapScalingMode.HighQuality);
@@ -361,6 +412,56 @@ namespace Stagehand
             BuildControls();
             content.Children.Add(controls);
         }
+
+        void BuildHud()
+        {
+            var tiles = new Grid();
+            var column = 0;
+            foreach (var tile in new[]
+            {
+                Tuple.Create("TIME", hudClock, hudDate), Tuple.Create("GPU TEMP", hudGpuTemperature, hudGpuName), Tuple.Create("GPU LOAD", hudGpuLoad, Text(19, Graphite.Muted, FontWeights.Normal)),
+                Tuple.Create("VRAM", hudVram, hudVramTotal), Tuple.Create("CPU LOAD", hudCpu, Text(19, Graphite.Muted, FontWeights.Normal))
+            })
+            {
+                tiles.ColumnDefinitions.Add(new ColumnDefinition());
+                var label = Text(15, Soft, FontWeights.SemiBold);
+                label.Text = tile.Item1;
+                tile.Item2.FontFamily = Graphite.Mono;
+                tile.Item2.Margin = new Thickness(0, 10, 0, 4);
+                tile.Item3.Text = " ";
+                var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { label, tile.Item2, tile.Item3 } };
+                var border = new Border
+                {
+                    Child = stack, Margin = new Thickness(10), Padding = new Thickness(28, 24, 28, 24), CornerRadius = new CornerRadius(18),
+                    Background = Graphite.Glass(0x1C, 0x06), BorderBrush = Graphite.Brush(Graphite.Ink, 0x2A), BorderThickness = new Thickness(1)
+                };
+                Grid.SetColumn(border, column++);
+                tiles.Children.Add(border);
+            }
+            hudLyric.Margin = new Thickness(18, 0, 0, 0);
+            hudStrip.Children.Add(hudSong);
+            hudStrip.Children.Add(hudLyric);
+            var layout = new DockPanel { Margin = new Thickness(38, 30, 38, 30) };
+            DockPanel.SetDock(hudStrip, Dock.Bottom);
+            layout.Children.Add(hudStrip);
+            layout.Children.Add(tiles);
+            hud.Children.Add(layout);
+        }
+
+        void UpdateHud(bool active)
+        {
+            var now = DateTime.Now;
+            hudClock.Text = now.ToString("HH:mm");
+            hudDate.Text = now.ToString("ddd d MMM");
+            hudStrip.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
+            if (!active) return;
+            hudSong.Text = track.Title + "  ·  " + track.Artist;
+            var t = LyricTime(watcher.Predict());
+            var line = lyricsKind == LyricsKind.Synced ? sourceLines.LastOrDefault(l => l.Start <= t) : null;
+            hudLyric.Text = line == null || line.IsGap ? "" : string.Concat(line.Words.Select(w => w.Text)).Trim();
+        }
+
+        double LyricTime(double position) => position + settings.LyricOffsetSeconds + (track != null && nudges.TryGetValue(track.Key, out var nudge) ? nudge : 0);
 
         void BuildControls()
         {
@@ -837,13 +938,17 @@ namespace Stagehand
                 showDuration = target > 0 ? 0.75 : 0.6;
             }
             show = showFrom + (showTo - showFrom) * Graphite.Settle((now - showStart) / showDuration);
-            content.Opacity = show;
-            coverHost.Opacity = show;
+            gameMix = Approach(gameMix, game ? 1 : 0, dt, 5);
+            hud.Opacity = gameMix;
+            hud.Visibility = gameMix < 0.001 ? Visibility.Hidden : Visibility.Visible;
+            if (gameMix > 0.001) UpdateHud(active);
+            content.Opacity = show * (1 - gameMix);
+            coverHost.Opacity = show * (1 - gameMix);
             contentScale.ScaleX = contentScale.ScaleY = 0.97 + 0.03 * show;
             var transitioning = show > 0.001 && show < 0.999;
             contentBlur.Radius = 16 * (1 - show);
             content.Effect = transitioning ? contentBlur : null;
-            idle.SetPlaying((show < 0.999 || settings.BackgroundStyle == "Idle") && !blackout);
+            idle.SetPlaying((show < 0.999 || settings.BackgroundStyle == "Idle") && !blackout && gameMix < 0.999);
             var root = (UIElement)Content;
             root.Opacity = Approach(root.Opacity, blackout ? 0 : 1, dt, 4);
 
@@ -854,6 +959,8 @@ namespace Stagehand
             videoLayer.Opacity = videoMix;
             musicLayer.Visibility = videoMix > 0.999 ? Visibility.Hidden : Visibility.Visible;
             videoLayer.Visibility = videoMix < 0.001 ? Visibility.Hidden : Visibility.Visible;
+
+            AnimateSpectrum(dt);
             if (show <= 0.001) return;
 
             lyricsFade = Approach(lyricsFade, 1, dt, 5);
@@ -872,7 +979,7 @@ namespace Stagehand
                 foreach (var word in lines.SelectMany(line => line.Words))
                     word.LitStart.Color = word.LitEdge.Color = highlight;
             }
-            var t = position + settings.LyricOffsetSeconds + (track != null && nudges.TryGetValue(track.Key, out var nudge) ? nudge : 0);
+            var t = LyricTime(position);
             var unsynced = lyricsKind == LyricsKind.Plain;
             var current = -1;
             for (int i = 0; i < lines.Count; i++)
@@ -905,6 +1012,32 @@ namespace Stagehand
             var scrollTarget = designHeight * 0.46 - (focus.Top + focus.Height / 2);
             scroll.Y = snapLines ? scrollTarget : Approach(scroll.Y, scrollTarget, dt, 6.5);
             snapLines = false;
+        }
+
+        void AnimateSpectrum(double dt)
+        {
+            if (!settings.MusicVisualizer || show <= 0.001 || blackout || game)
+            {
+                if (spectrum == null) return;
+                spectrum.Stop();
+                spectrum = null;
+                spectrumLayer.Visibility = Visibility.Hidden;
+                return;
+            }
+            if (spectrum == null)
+            {
+                spectrum = new AudioSpectrum(SpectrumBands);
+                spectrumLayer.Visibility = Visibility.Visible;
+            }
+            spectrumBase.Color = Color.FromArgb(0x48, coverAccent.R, coverAccent.G, coverAccent.B);
+            spectrumTip.Color = Color.FromArgb(0x08, coverAccent.R, coverAccent.G, coverAccent.B);
+            var levels = spectrum.Levels(dt);
+            for (var i = 0; i < SpectrumBands; i++)
+            {
+                var height = 4 + levels[i] * designHeight * 0.4;
+                spectrumBars[i].Height = height;
+                Canvas.SetTop(spectrumBars[i], designHeight - height);
+            }
         }
 
         void UpdateStats(double position)
